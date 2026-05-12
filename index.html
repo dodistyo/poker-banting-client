@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capsa Banting</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; overflow: hidden; }
+
+/* Name overlay */
+#name-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
+#name-overlay .panel { background: #16213e; border-radius: 12px; padding: 32px; text-align: center; }
+#name-overlay h2 { margin-bottom: 20px; color: #e94560; }
+#name-overlay .name-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+#name-overlay .name-row label { width: 80px; text-align: right; color: #aaa; }
+#name-overlay .name-row input { padding: 6px 12px; border: 1px solid #444; border-radius: 6px; background: #0f3460; color: #fff; font-size: 14px; width: 160px; }
+#name-overlay .name-row .bot-label { width: 80px; text-align: right; color: #666; font-style: italic; }
+#name-overlay button { margin-top: 20px; padding: 10px 32px; background: #e94560; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+#name-overlay button:hover { background: #c73650; }
+
+/* Main layout */
+#app { display: grid; grid-template-columns: 1fr 260px; grid-template-rows: 50px 1fr; height: 100vh; }
+#header { grid-column: 1 / -1; background: #16213e; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 2px solid #0f3460; }
+#header h1 { color: #e94560; font-size: 20px; }
+#header .controls { display: flex; gap: 8px; }
+#header button { padding: 6px 16px; background: #e94560; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+#header button:hover { background: #c73650; }
+
+/* Table area */
+#table-area { display: grid; grid-template-rows: 1fr 1fr 1fr; grid-template-columns: 1fr 1fr 1fr; position: relative; background: radial-gradient(ellipse at center, #1a5c2a 0%, #0d3518 100%); overflow: hidden; }
+
+/* Player areas */
+.player-area { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; position: relative; }
+.player-area.top { grid-row: 1; grid-column: 2; }
+.player-area.right { grid-row: 2; grid-column: 3; }
+.player-area.bottom { grid-row: 3; grid-column: 2; }
+.player-area.left { grid-row: 2; grid-column: 1; }
+
+.player-label { font-size: 13px; font-weight: 600; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
+.player-label .card-count { font-size: 11px; color: #aaa; font-weight: 400; }
+.player-label .turn-badge { background: #e94560; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+.player-label .bot-badge { background: #4a4a6a; color: #ccc; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+
+.active-player .player-label { color: #ffd700; }
+.active-player { background: rgba(255,215,0,0.08); border-radius: 8px; }
+
+/* Hands */
+.hand { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+.hand-top, .hand-bottom { flex-direction: row; }
+.hand-left, .hand-right { flex-direction: column; }
+.hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -8px 0; }
+.hand-left .card.selected, .hand-right .card.selected { transform: rotate(90deg) translateY(-6px); }
+
+/* Cards */
+.card { width: 40px; height: 56px; border-radius: 5px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; cursor: pointer; border: 2px solid #ccc; user-select: none; transition: all 0.15s ease; position: relative; }
+.card.red { color: #d32f2f; }
+.card.black { color: #222; }
+.card .rank { font-size: 13px; line-height: 1; }
+.card .suit { font-size: 16px; line-height: 1; }
+.card.selected { border-color: #ffd700; transform: translateY(-6px); box-shadow: 0 4px 12px rgba(255,215,0,0.5); }
+.card:hover { border-color: #aaa; }
+
+/* Face-down card */
+.card.face-down { background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border-color: #3a6a9c; cursor: default; }
+.card.face-down .rank, .card.face-down .suit { display: none; }
+.card.face-down::after { content: '\2660'; color: rgba(255,255,255,0.15); font-size: 24px; }
+
+/* Center play area */
+#center-area { grid-row: 2; grid-column: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+#center-cards { display: flex; gap: 3px; min-height: 56px; min-width: 120px; align-items: center; justify-content: center; }
+#center-info { font-size: 12px; color: #ffd700; text-align: center; min-height: 18px; }
+#pass-markers { display: flex; gap: 6px; min-height: 18px; }
+.pass-tag { font-size: 11px; color: #ff8a80; background: rgba(255,0,0,0.1); padding: 1px 8px; border-radius: 8px; }
+
+/* Action bar */
+#action-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; align-items: center; z-index: 10; background: rgba(0,0,0,0.6); padding: 6px 16px; border-radius: 10px; }
+#action-bar.visible { display: flex; }
+#action-bar button { padding: 8px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+#btn-play { background: #4caf50; color: #fff; }
+#btn-play:disabled { background: #555; color: #888; cursor: not-allowed; }
+#btn-pass { background: #ff9800; color: #fff; }
+#btn-pass:disabled { background: #555; color: #888; cursor: not-allowed; }
+#error-msg { color: #ff5252; font-size: 12px; text-align: center; min-height: 16px; white-space: nowrap; }
+#turn-indicator { color: #ffd700; font-size: 13px; font-weight: 600; margin-right: 12px; white-space: nowrap; }
+#combo-preview { color: #aaa; font-size: 12px; margin-left: 8px; white-space: nowrap; }
+
+/* Sidebar */
+#sidebar { background: #16213e; border-left: 2px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; }
+#sidebar h3 { padding: 10px 12px; font-size: 14px; color: #e94560; border-bottom: 1px solid #0f3460; }
+#scoreboard { padding: 8px 12px; border-bottom: 1px solid #0f3460; }
+#scoreboard .score-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+#scoreboard .score-row .name { color: #ccc; }
+#scoreboard .score-row .pts { color: #ffd700; font-weight: 600; }
+#log { flex: 1; overflow-y: auto; padding: 8px 12px; font-size: 12px; }
+#log .log-entry { padding: 3px 0; border-bottom: 1px solid #0f346022; color: #bbb; }
+#log .log-entry strong { color: #e94560; }
+#log .log-entry .bot { color: #64b5f6; }
+
+/* Game over overlay */
+#gameover-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 90; }
+#gameover-overlay.show { display: flex; }
+#gameover-overlay .panel { background: #16213e; border-radius: 12px; padding: 32px 48px; text-align: center; }
+#gameover-overlay h2 { color: #ffd700; margin-bottom: 16px; }
+#gameover-overlay .final-scores { margin: 16px 0; text-align: left; }
+#gameover-overlay .final-scores div { padding: 4px 0; font-size: 14px; }
+#gameover-overlay button { margin-top: 16px; padding: 10px 32px; background: #e94560; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+#gameover-overlay button:hover { background: #c73650; }
+
+/* 3-discard phase overlay */
+#three-phase-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 80; }
+#three-phase-overlay.show { display: flex; }
+#three-phase-overlay .panel { background: #16213e; border-radius: 12px; padding: 24px 40px; text-align: center; }
+#three-phase-overlay h2 { color: #ffd700; margin-bottom: 8px; font-size: 22px; }
+#three-phase-overlay .subtitle { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+
+/* 3-discard player areas */
+.three-discard-grid { display: flex; gap: 24px; align-items: flex-start; justify-content: center; flex-wrap: wrap; max-width: 700px; }
+.three-discard-player { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 120px; }
+.three-discard-player .tdp-name { font-size: 14px; font-weight: 600; color: #ccc; }
+.three-discard-player .tdp-name.active { color: #ffd700; }
+.three-discard-player .tdp-name.discarded { color: #666; text-decoration: line-through; }
+.three-discard-player .tdp-cards { display: flex; gap: 4px; min-height: 64px; align-items: center; justify-content: center; }
+.three-discard-player .tdp-cards .card { transition: all 0.4s ease; }
+.three-discard-player .tdp-cards .card.discarding { opacity: 0.3; transform: scale(0.8); }
+.three-discard-player .tdp-count { font-size: 11px; color: #888; }
+
+/* 3-discard center info */
+#three-phase-center-info { margin-top: 20px; font-size: 16px; color: #ffd700; min-height: 24px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- Name overlay -->
+<div id="name-overlay">
+  <div class="panel">
+    <h2>Capsa Banting</h2>
+    <div class="name-row"><label>You:</label><input id="name-0" value="You"></div>
+    <div class="name-row"><label>Bot 1:</label><input id="name-1" value="Bot Ali"></div>
+    <div class="name-row"><label>Bot 2:</label><input id="name-2" value="Bot Budi"></div>
+    <div class="name-row"><label>Bot 3:</label><input id="name-3" value="Bot Cici"></div>
+    <button onclick="startGame()">Deal</button>
+  </div>
+</div>
+
+<!-- 3-discard phase overlay -->
+<div id="three-phase-overlay">
+  <div class="panel">
+    <h2>Discard 3s</h2>
+    <div class="subtitle">Players discard all their 3s before the game begins</div>
+    <div class="three-discard-grid" id="three-discard-grid"></div>
+    <div id="three-phase-center-info"></div>
+  </div>
+</div>
+
+<!-- Game over overlay -->
+<div id="gameover-overlay">
+  <div class="panel">
+    <h2 id="winner-text"></h2>
+    <div class="final-scores" id="final-scores"></div>
+    <button onclick="newGame()">Play Again</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <div id="header">
+    <h1>Capsa Banting</h1>
+    <div class="controls">
+      <button onclick="newGame()">New Game</button>
+    </div>
+  </div>
+
+  <div id="table-area">
+    <div class="player-area top" id="player-2"></div>
+    <div class="player-area left" id="player-3"></div>
+    <div class="player-area right" id="player-1"></div>
+    <div class="player-area bottom" id="player-0"></div>
+    <div id="center-area">
+      <div id="center-info"></div>
+      <div id="center-cards"></div>
+      <div id="pass-markers"></div>
+    </div>
+    <div id="action-bar">
+      <button id="btn-play" onclick="playCards()">Play</button>
+      <button id="btn-pass" onclick="passTurn()">Pass</button>
+      <span id="combo-preview"></span>
+      <span id="error-msg"></span>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <h3>Scoreboard</h3>
+    <div id="scoreboard"></div>
+    <h3>Game Log</h3>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+// --- Card model ---
+const RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
+const SUITS = [
+  { name: 'diamonds', symbol: '\u2666', order: 0 },
+  { name: 'clubs', symbol: '\u2663', order: 1 },
+  { name: 'hearts', symbol: '\u2665', order: 2 },
+  { name: 'spades', symbol: '\u2660', order: 3 }
+];
+
+function rankIndex(r) { return RANKS.indexOf(r); }
+function suitOrder(s) { return SUITS.find(su => su.name === s).order; }
+
+function createDeck() {
+  const deck = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      deck.push({ rank, suit: suit.name, suitSymbol: suit.symbol, suitOrder: suit.order, rankIndex: rankIndex(rank) });
+    }
+  }
+  return deck;
+}
+
+function shuffle(deck) {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+function cardLabel(c) { return c.rank + c.suitSymbol; }
+
+function sortCards(cards) {
+  return [...cards].sort((a, b) => b.rankIndex - a.rankIndex || b.suitOrder - a.suitOrder);
+}
+
+// --- Combo type detection ---
+function detectCombo(cards) {
+  const n = cards.length;
+  const sorted = [...cards].sort((a, b) => a.rankIndex - b.rankIndex || a.suitOrder - b.suitOrder);
+  const ranks = sorted.map(c => c.rankIndex);
+  const suits = sorted.map(c => c.suit);
+
+  const isSameSuit = suits.every(s => s === suits[0]);
+
+  const rankCounts = {};
+  ranks.forEach(r => rankCounts[r] = (rankCounts[r] || 0) + 1);
+  const counts = Object.values(rankCounts).sort((a, b) => a - b);
+
+  if (n === 1) return { type: 'single', cards: sorted };
+  if (n === 2 && counts[0] === 2) return { type: 'pair', cards: sorted };
+
+  if (n === 3) {
+    if (counts[0] === 3) return { type: 'triple', cards: sorted };
+    if (isSameSuit && isStraight(ranks)) return { type: 'straight', cards: sorted };
+  }
+
+  if (n === 4) {
+    if (isSameSuit && isStraight(ranks)) return { type: 'straight', cards: sorted };
+  }
+
+  if (n === 5) {
+    if (counts[0] === 1 && counts[1] === 4) return { type: 'fourkind', cards: sorted };
+    if (counts[0] === 2 && counts[1] === 3) return { type: 'fullhouse', cards: sorted };
+    if (isSameSuit && isStraight(ranks)) return { type: 'straight', cards: sorted };
+  }
+
+  return null;
+}
+
+function isStraight(ranks) {
+  const unique = [...new Set(ranks)].sort((a, b) => a - b);
+  if (unique.length < 3) return false;
+  // No 2s allowed (rankIndex 12)
+  if (unique.some(r => r >= 12)) return false;
+  // All must be numbers (3-9, rankIndex 0-6) or all letters (10-A, rankIndex 7-11)
+  const allNumbers = unique.every(r => r <= 7);
+  const allLetters = unique.every(r => r >= 8);
+  if (!allNumbers && !allLetters) return false;
+  // Must be consecutive
+  for (let i = 1; i < unique.length; i++) {
+    if (unique[i] !== unique[i - 1] + 1) return false;
+  }
+  return true;
+}
+
+// --- Combo comparison ---
+function compareCombos(comboA, comboB) {
+  if (comboA.type !== comboB.type) return null;
+
+  switch (comboA.type) {
+    case 'single':
+    case 'pair':
+    case 'triple':
+      return compareByRankThenSuit(comboA.cards, comboB.cards);
+
+    case 'straight': {
+      const aHigh = comboA.cards[comboA.cards.length - 1];
+      const bHigh = comboB.cards[comboB.cards.length - 1];
+      return aHigh.rankIndex - bHigh.rankIndex;
+    }
+
+   case 'fullhouse': {
+      const aTripleRank = comboA.cards[0].rankIndex === comboA.cards[2].rankIndex ? comboA.cards[0].rankIndex : comboA.cards[3].rankIndex;
+      const bTripleRank = comboB.cards[0].rankIndex === comboB.cards[2].rankIndex ? comboB.cards[0].rankIndex : comboB.cards[3].rankIndex;
+      if (aTripleRank !== bTripleRank) return aTripleRank - bTripleRank;
+      const aPairRank = comboA.cards[0].rankIndex === comboA.cards[2].rankIndex ? comboA.cards[3].rankIndex : comboA.cards[0].rankIndex;
+      const bPairRank = comboB.cards[0].rankIndex === comboB.cards[2].rankIndex ? comboB.cards[3].rankIndex : comboB.cards[0].rankIndex;
+      return aPairRank - bPairRank;
+    }
+
+    case 'fourkind': {
+      const aQuadRank = comboA.cards[0].rankIndex === comboA.cards[1].rankIndex ? comboA.cards[0].rankIndex : comboA.cards[4].rankIndex;
+      const bQuadRank = comboB.cards[0].rankIndex === comboB.cards[1].rankIndex ? comboB.cards[0].rankIndex : comboB.cards[4].rankIndex;
+      if (aQuadRank !== bQuadRank) return aQuadRank - bQuadRank;
+      const aKicker = comboA.cards.find(c => c.rankIndex !== aQuadRank).rankIndex;
+      const bKicker = comboB.cards.find(c => c.rankIndex !== bQuadRank).rankIndex;
+      return aKicker - bKicker;
+    }
+
+    default: return 0;
+  }
+}
+
+function compareByRankThenSuit(cardsA, cardsB) {
+  const aHigh = cardsA[cardsA.length - 1];
+  const bHigh = cardsB[cardsB.length - 1];
+  return aHigh.rankIndex - bHigh.rankIndex;
+}
+
+function comboName(combo) {
+  const names = {
+    single: 'Single', pair: 'Pair', triple: 'Triple',
+    straight: 'Straight', fullhouse: 'Full House',
+    fourkind: 'Four of a Kind'
+  };
+  return names[combo.type] || combo.type;
+}
+
+// --- AI Logic ---
+function findValidCombos(hand, tableCombo) {
+  const combos = [];
+  const n = hand.length;
+
+  if (!tableCombo) {
+    // Singles
+    for (let i = 0; i < n; i++) {
+      combos.push({ type: 'single', cards: [hand[i]] });
+    }
+    // Pairs and triples
+    const rankGroups = {};
+    hand.forEach((c, idx) => {
+      if (!rankGroups[c.rankIndex]) rankGroups[c.rankIndex] = [];
+      rankGroups[c.rankIndex].push(idx);
+    });
+    for (const ri in rankGroups) {
+      const indices = rankGroups[ri];
+      if (indices.length === 2) {
+        combos.push({ type: 'pair', cards: indices.map(i => hand[i]) });
+      }
+      if (indices.length === 3) {
+        combos.push({ type: 'triple', cards: indices.map(i => hand[i]) });
+        combos.push({ type: 'pair', cards: [hand[indices[0]], hand[indices[1]]] });
+      }
+      if (indices.length === 4) {
+        combos.push({ type: 'triple', cards: [hand[indices[0]], hand[indices[1]], hand[indices[2]]] });
+        combos.push({ type: 'pair', cards: [hand[indices[0]], hand[indices[1]]] });
+      }
+    }
+    // 3-card combos (straights)
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        for (let k = j + 1; k < n; k++) {
+          const three = [hand[i], hand[j], hand[k]];
+          const combo = detectCombo(three);
+          if (combo && combo.type === 'straight') combos.push(combo);
+        }
+      }
+    }
+    // 4-card combos (straights)
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        for (let k = j + 1; k < n; k++) {
+          for (let l = k + 1; l < n; l++) {
+            const four = [hand[i], hand[j], hand[k], hand[l]];
+            const combo = detectCombo(four);
+            if (combo && combo.type === 'straight') combos.push(combo);
+          }
+        }
+      }
+    }
+    // 5-card combos (flush, fullhouse, fourkind, straight)
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        for (let k = j + 1; k < n; k++) {
+          for (let l = k + 1; l < n; l++) {
+            for (let m = l + 1; m < n; m++) {
+              const five = [hand[i], hand[j], hand[k], hand[l], hand[m]];
+              const combo = detectCombo(five);
+              if (combo) combos.push(combo);
+            }
+          }
+        }
+      }
+    }
+  } else {
+    // Must match type and count
+    const targetCount = tableCombo.cards.length;
+    const targetType = tableCombo.type;
+
+    if (targetCount === 1) {
+      for (const c of hand) {
+        const combo = { type: 'single', cards: [c] };
+        if (compareCombos(combo, tableCombo) > 0) combos.push(combo);
+      }
+    } else if (targetCount === 2) {
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const combo = detectCombo([hand[i], hand[j]]);
+          if (combo && compareCombos(combo, tableCombo) > 0) combos.push(combo);
+        }
+      }
+    } else if (targetCount === 3) {
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          for (let k = j + 1; k < n; k++) {
+            const combo = detectCombo([hand[i], hand[j], hand[k]]);
+            if (combo && compareCombos(combo, tableCombo) > 0) combos.push(combo);
+          }
+        }
+      }
+    } else if (targetCount === 4) {
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          for (let k = j + 1; k < n; k++) {
+            for (let l = k + 1; l < n; l++) {
+              const combo = detectCombo([hand[i], hand[j], hand[k], hand[l]]);
+              if (combo && combo.type === targetType && compareCombos(combo, tableCombo) > 0) combos.push(combo);
+            }
+          }
+        }
+      }
+    } else if (targetCount === 5) {
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          for (let k = j + 1; k < n; k++) {
+            for (let l = k + 1; l < n; l++) {
+              for (let m = l + 1; m < n; m++) {
+                const five = [hand[i], hand[j], hand[k], hand[l], hand[m]];
+                const combo = detectCombo(five);
+                if (combo && combo.type === targetType && compareCombos(combo, tableCombo) > 0) combos.push(combo);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return combos;
+}
+
+function comboStrength(combo) {
+  const typeOrder = {
+    single: 0, pair: 1, triple: 2,
+    straight: 3, fullhouse: 4,
+    fourkind: 5
+  };
+  const typeScore = typeOrder[combo.type] || 0;
+  const rankScore = combo.cards.reduce((s, c) => s + c.rankIndex, 0);
+  const suitScore = combo.cards.reduce((s, c) => s + c.suitOrder, 0);
+  return typeScore * 100 + rankScore + suitScore / 100;
+}
+
+function countMultiCardCombos(hand) {
+  let count = 0;
+  const n = hand.length;
+  // Pairs and triples
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const two = [hand[i], hand[j]];
+      const c2 = detectCombo(two);
+      if (c2 && c2.type !== 'single') count++;
+      for (let k = j + 1; k < n; k++) {
+        const three = [hand[i], hand[j], hand[k]];
+        const c3 = detectCombo(three);
+        if (c3 && c3.type !== 'single') count++;
+      }
+    }
+  }
+  // 5-card combos
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      for (let k = j + 1; k < n; k++) {
+        for (let l = k + 1; l < n; l++) {
+          for (let m = l + 1; m < n; m++) {
+            const five = [hand[i], hand[j], hand[k], hand[l], hand[m]];
+            const c5 = detectCombo(five);
+            if (c5) count++;
+          }
+        }
+      }
+    }
+  }
+  return count;
+}
+
+function aiPickCombo(combos, hand) {
+  if (combos.length === 0) return null;
+
+  if (combos.length === 1) return combos[0];
+
+  // If we can win the game with this play, always prefer it
+  for (const combo of combos) {
+    if (hand.length - combo.cards.length === 0) return combo;
+  }
+
+  // If following a table combo, play weakest that beats it
+  if (currentCombo) {
+    combos.sort((a, b) => comboStrength(a) - comboStrength(b));
+    return combos[0];
+  }
+
+  // Free play — smarter scoring to prefer multi-card combos
+  const typeOrder = { single: 0, pair: 1, triple: 2, straight: 3, fullhouse: 4, fourkind: 5 };
+  const scored = combos.map(combo => {
+    const remaining = hand.filter(c => !combo.cards.includes(c));
+    const remainingMulti = countMultiCardCombos(remaining);
+    const comboTypeScore = typeOrder[combo.type] || 0;
+    const strength = comboStrength(combo);
+
+    // Base score: heavily favor bigger combos
+    let score = combo.cards.length * 8 + comboTypeScore * 12;
+
+    // Quality of remaining hand: how many multi-card combos left
+    score += remainingMulti * 2;
+
+    // Remaining hand quality: count pairs/triples separately
+    const rankGroups = {};
+    remaining.forEach(c => {
+      if (!rankGroups[c.rankIndex]) rankGroups[c.rankIndex] = 0;
+      rankGroups[c.rankIndex]++;
+    });
+    let loneCards = 0;
+    for (const ri in rankGroups) {
+      if (rankGroups[ri] === 1) loneCards++;
+    }
+    // Penalize leaving many lone cards (hard to play later)
+    score -= loneCards * 1.5;
+
+    // Don't play very strong combos early (save for beating others)
+    if (strength > 400) score -= 10;
+    if (strength > 700) score -= 20;
+
+    // Small randomness for variety between bots
+    score += Math.random() * 3;
+
+    return { combo, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  // From top 3, pick one with some randomness
+  const topN = Math.min(3, scored.length);
+  return scored[Math.floor(Math.random() * topN)].combo;
+}
+
+function aiDecide(playerIdx) {
+  const hand = hands[playerIdx];
+  const validCombos = findValidCombos(hand, currentCombo);
+
+  if (validCombos.length === 0) {
+    return 'pass';
+  }
+
+  // AI strategy: if leading (no table combo), play lowest single or pair
+  // If following, play weakest combo that beats current
+  const chosen = aiPickCombo(validCombos, hand);
+  return chosen;
+}
+
+// --- Game state ---
+const isHuman = [true, false, false, false];
+let playerNames = ['You', 'Bot Ali', 'Bot Budi', 'Bot Cici'];
+let hands = [[], [], [], []];
+let scores = [0, 0, 0, 0];
+let currentPlayer = 0;
+let trickLeader = 0;
+let currentCombo = null;
+let currentComboPlayer = -1;
+let passedPlayers = [];
+let gameOver = false;
+let firstTrick = true;
+let logEntries = [];
+let aiTimeout = null;
+let threePhase = false;
+let threePhaseOrder = [];
+let threePhaseIndex = 0;
+let threePhaseCards = [[], [], [], []];
+let threePhaseDiscarded = [false, false, false, false];
+let finishedOrder = [];
+
+function startGame() {
+  for (let i = 0; i < 4; i++) {
+    const input = document.getElementById('name-' + i);
+    if (input) playerNames[i] = input.value.trim() || (i === 0 ? 'You' : ('Bot ' + (i)));
+  }
+  document.getElementById('name-overlay').style.display = 'none';
+  initGame();
+}
+
+function newGame() {
+  document.getElementById('gameover-overlay').classList.remove('show');
+  document.getElementById('name-overlay').style.display = 'flex';
+}
+
+function initGame() {
+  if (aiTimeout) clearTimeout(aiTimeout);
+
+  const deck = shuffle(createDeck());
+  hands = [[], [], [], []];
+  for (let i = 0; i < 52; i++) hands[i % 4].push(deck[i]);
+  for (let i = 0; i < 4; i++) hands[i] = sortCards(hands[i]);
+
+  currentPlayer = 0;
+  currentCombo = null;
+  currentComboPlayer = -1;
+  passedPlayers = [];
+  gameOver = false;
+  logEntries = [];
+  firstTrick = true;
+  threePhase = false;
+  threePhaseOrder = [];
+  threePhaseIndex = 0;
+  threePhaseCards = [[], [], [], []];
+  threePhaseDiscarded = [false, false, false, false];
+  finishedOrder = [];
+
+  document.getElementById('log').innerHTML = '';
+  updateScoreboard();
+
+  addLog('New game started. ' + playerNames.join(', ') + '.', false);
+
+  // Extract 3s from each hand for the 3-discard phase
+  for (let i = 0; i < 4; i++) {
+    threePhaseCards[i] = hands[i].filter(c => c.rank === '3');
+    hands[i] = hands[i].filter(c => c.rank !== '3');
+  }
+
+  // Determine 3-discard order: most 3s first, then highest suit tiebreak
+  const threeInfo = [];
+  for (let i = 0; i < 4; i++) {
+    const threes = threePhaseCards[i];
+    const highestSuit = threes.length > 0 ? Math.max(...threes.map(c => c.suitOrder)) : -1;
+    threeInfo.push({ idx: i, count: threes.length, highestSuit });
+  }
+  threeInfo.sort((a, b) => b.count - a.count || b.highestSuit - a.highestSuit);
+  threePhaseOrder = threeInfo.map(t => t.idx);
+
+  addLog('--- 3s Discard Phase ---', false);
+  for (const t of threeInfo) {
+    addLog(playerNames[t.idx] + ': ' + t.count + ' three(s) (highest: ' + (t.count > 0 ? ['♦','♣','♥','♠'][t.highestSuit] : '—') + ')', false);
+  }
+
+  threePhase = true;
+  threePhaseIndex = 0;
+  currentPlayer = threePhaseOrder[0];
+
+  render();
+  renderThreePhaseOverlay();
+  processThreePhase();
+}
+
+function addLog(msg, isHumanPlayer) {
+  logEntries.push(msg);
+  const log = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  if (!isHumanPlayer) entry.classList.add('bot');
+  entry.innerHTML = msg;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updateScoreboard() {
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const row = document.createElement('div');
+    row.className = 'score-row';
+    const badge = isHuman[i] ? '' : ' <span style="color:#64b5f6;font-size:10px;">[BOT]</span>';
+    row.innerHTML = '<span class="name">' + playerNames[i] + badge + '</span><span class="pts">' + scores[i] + ' pts</span>';
+    sb.appendChild(row);
+  }
+}
+
+function processTurn() {
+  if (gameOver) return;
+
+  if (threePhase) {
+    processThreePhase();
+    return;
+  }
+
+  if (!isHuman[currentPlayer]) {
+    aiTimeout = setTimeout(() => {
+      aiPlay(currentPlayer);
+    }, 600 + Math.random() * 400);
+  }
+
+  render();
+}
+
+function processThreePhase() {
+  if (gameOver) return;
+
+  const playerIdx = threePhaseOrder[threePhaseIndex];
+  const threes = threePhaseCards[playerIdx];
+
+  if (threes.length === 0) {
+    threePhaseDiscarded[playerIdx] = true;
+    addLog(playerNames[playerIdx] + ' has no 3s.', isHuman[playerIdx]);
+    renderThreePhaseOverlay();
+    threePhaseIndex++;
+    if (threePhaseIndex >= 4) {
+      endThreePhase();
+      return;
+    }
+    aiTimeout = setTimeout(() => processThreePhase(), 500);
+    return;
+  }
+
+  currentPlayer = playerIdx;
+  renderThreePhaseOverlay();
+
+  const delay = isHuman[playerIdx] ? 1200 : 800 + Math.random() * 600;
+  aiTimeout = setTimeout(() => {
+    // Discard the 3s
+    const threeLabels = threes.map(cardLabel).join(' ');
+    addLog(playerNames[playerIdx] + ' played ' + threeLabels + ' (3s discard)', isHuman[playerIdx]);
+    threePhaseCards[playerIdx] = [];
+    threePhaseDiscarded[playerIdx] = true;
+    renderThreePhaseOverlay();
+
+    if (hands[playerIdx].length === 0) {
+      playerFinished(playerIdx);
+      return;
+    }
+
+    threePhaseIndex++;
+    if (threePhaseIndex >= 4) {
+      endThreePhase();
+      return;
+    }
+
+    aiTimeout = setTimeout(() => processThreePhase(), 700);
+  }, delay);
+}
+
+function endThreePhase() {
+  threePhase = false;
+  document.getElementById('three-phase-overlay').classList.remove('show');
+  addLog('--- 3s Discard Phase Complete ---', false);
+  addLog('First trick begins. ' + playerNames[threePhaseOrder[0]] + ' leads.', isHuman[threePhaseOrder[0]]);
+  currentCombo = null;
+  currentComboPlayer = -1;
+  passedPlayers = [];
+  currentPlayer = threePhaseOrder[0];
+  firstTrick = true;
+  render();
+  processTurn();
+}
+
+function renderThreePhaseOverlay() {
+  const overlay = document.getElementById('three-phase-overlay');
+  const grid = document.getElementById('three-discard-grid');
+  const centerInfo = document.getElementById('three-phase-center-info');
+
+  overlay.classList.add('show');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < 4; i++) {
+    const playerDiv = document.createElement('div');
+    playerDiv.className = 'three-discard-player';
+
+    const nameDiv = document.createElement('div');
+    const isActive = i === currentPlayer && threePhase;
+    const isDiscarded = threePhaseDiscarded[i];
+    nameDiv.className = 'tdp-name' + (isActive ? ' active' : '') + (isDiscarded ? ' discarded' : '');
+    nameDiv.textContent = playerNames[i];
+
+    const cardsDiv = document.createElement('div');
+    cardsDiv.className = 'tdp-cards';
+
+    const threes = threePhaseCards[i];
+    if (threes.length > 0) {
+      threes.forEach(card => {
+        const cardEl = document.createElement('div');
+        const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+        cardEl.className = 'card ' + (isRed ? 'red' : 'black');
+        if (isDiscarded) cardEl.classList.add('discarding');
+        cardEl.innerHTML = '<span class="rank">' + card.rank + '</span><span class="suit">' + card.suitSymbol + '</span>';
+        cardsDiv.appendChild(cardEl);
+      });
+    } else if (isDiscarded) {
+      const emptyEl = document.createElement('span');
+      emptyEl.style.cssText = 'color:#666;font-size:12px;';
+      emptyEl.textContent = '—';
+      cardsDiv.appendChild(emptyEl);
+    } else {
+      const emptyEl = document.createElement('span');
+      emptyEl.style.cssText = 'color:#666;font-size:12px;';
+      emptyEl.textContent = 'no 3s';
+      cardsDiv.appendChild(emptyEl);
+    }
+
+    playerDiv.appendChild(nameDiv);
+    playerDiv.appendChild(cardsDiv);
+    grid.appendChild(playerDiv);
+  }
+
+  if (threePhase) {
+    const activeIdx = threePhaseOrder[threePhaseIndex];
+    centerInfo.textContent = isHuman[activeIdx] ? 'Your turn — discard your 3s' : playerNames[activeIdx] + ' is discarding 3s...';
+  } else {
+    centerInfo.textContent = 'All 3s discarded. Game begins!';
+  }
+}
+
+function aiPlay(playerIdx) {
+  if (gameOver) return;
+
+  const decision = aiDecide(playerIdx);
+
+  if (decision === 'pass') {
+    aiPass(playerIdx);
+  } else {
+    // Mark combo cards as selected and play
+    decision.cards.forEach(c => {
+      const idx = hands[playerIdx].indexOf(c);
+      if (idx >= 0) hands[playerIdx][idx].selected = true;
+    });
+    aiExecutePlay(playerIdx);
+  }
+}
+
+function aiExecutePlay(playerIdx) {
+  if (gameOver) return;
+  const selected = hands[playerIdx].filter(c => c.selected);
+  if (selected.length === 0) return;
+
+  const combo = detectCombo(selected);
+  if (!combo) return;
+
+  const cardLabels = combo.cards.map(cardLabel).join(' ');
+  hands[playerIdx] = hands[playerIdx].filter(c => !c.selected);
+  currentCombo = combo;
+  currentComboPlayer = playerIdx;
+  passedPlayers = [];
+
+  addLog('<strong>' + playerNames[playerIdx] + '</strong> played ' + cardLabels + ' (' + comboName(combo) + ')', isHuman[playerIdx]);
+
+  if (hands[playerIdx].length === 0) {
+    playerFinished(playerIdx);
+    return;
+  }
+
+  currentPlayer = nextActivePlayer(playerIdx);
+  clearSelections();
+  processTurn();
+}
+
+function aiPass(playerIdx) {
+  if (gameOver) return;
+
+  passedPlayers.push(playerIdx);
+  addLog('<strong>' + playerNames[playerIdx] + '</strong> passed.', isHuman[playerIdx]);
+
+  const activeCount = 4 - finishedOrder.length;
+  if (passedPlayers.length === activeCount - 1) {
+    addLog('Trick won by <strong>' + playerNames[currentComboPlayer] + '</strong>. New trick starts.', isHuman[currentComboPlayer]);
+    currentPlayer = currentComboPlayer;
+    if (finishedOrder.includes(currentPlayer)) {
+      currentPlayer = nextActivePlayer(currentPlayer);
+    }
+    currentCombo = null;
+    currentComboPlayer = -1;
+    passedPlayers = [];
+    trickLeader = currentPlayer;
+  } else {
+    currentPlayer = nextActivePlayer(playerIdx);
+  }
+
+  clearSelections();
+  processTurn();
+}
+
+// --- Human player actions ---
+let lastActivePlayer = -1;
+
+function selectCard(playerIdx, cardIdx) {
+  if (gameOver || threePhase || playerIdx !== 0 || currentPlayer !== 0) return;
+  const card = hands[playerIdx][cardIdx];
+  card.selected = !card.selected;
+  updatePlayButton();
+  render();
+}
+
+function clearSelections() {
+  for (let i = 0; i < 4; i++) {
+    hands[i].forEach(c => c.selected = false);
+  }
+}
+
+function getSelectedCards() {
+  return hands[0].filter(c => c.selected);
+}
+
+function updatePlayButton() {
+  if (currentPlayer !== 0) return;
+
+  const selected = getSelectedCards();
+  const btnPlay = document.getElementById('btn-play');
+  const btnPass = document.getElementById('btn-pass');
+  const errorEl = document.getElementById('error-msg');
+  const previewEl = document.getElementById('combo-preview');
+  errorEl.textContent = '';
+  previewEl.textContent = '';
+
+  if (gameOver) {
+    btnPlay.disabled = true;
+    btnPass.disabled = true;
+    return;
+  }
+
+  btnPass.disabled = passedPlayers.includes(0);
+
+  if (selected.length === 0) {
+    btnPlay.disabled = true;
+    return;
+  }
+
+  const combo = detectCombo(selected);
+  if (!combo) {
+    btnPlay.disabled = true;
+    previewEl.textContent = selected.length + ' cards (invalid)';
+    return;
+  }
+
+  previewEl.textContent = comboName(combo);
+
+  if (currentCombo) {
+    if (combo.cards.length !== currentCombo.cards.length || combo.type !== currentCombo.type) {
+      btnPlay.disabled = true;
+      errorEl.textContent = 'Must match: ' + comboName(currentCombo) + ' (' + currentCombo.cards.length + ' cards).';
+      return;
+    }
+    const result = compareCombos(combo, currentCombo);
+    if (result <= 0) {
+      btnPlay.disabled = true;
+      errorEl.textContent = 'Cannot beat: ' + currentCombo.cards.map(cardLabel).join(' ');
+      return;
+    }
+  }
+
+  btnPlay.disabled = false;
+}
+
+function playCards() {
+  if (gameOver || threePhase || currentPlayer !== 0) return;
+  const selected = getSelectedCards();
+  if (selected.length === 0) return;
+
+  const combo = detectCombo(selected);
+  if (!combo) return;
+
+  if (currentCombo) {
+    if (combo.cards.length !== currentCombo.cards.length || combo.type !== currentCombo.type) return;
+    const result = compareCombos(combo, currentCombo);
+    if (result <= 0) return;
+  }
+
+  const cardLabels = combo.cards.map(cardLabel).join(' ');
+  hands[0] = hands[0].filter(c => !c.selected);
+  currentCombo = combo;
+  currentComboPlayer = 0;
+  passedPlayers = [];
+
+  addLog('<strong>' + playerNames[0] + '</strong> played ' + cardLabels + ' (' + comboName(combo) + ')', true);
+
+  if (hands[0].length === 0) {
+    playerFinished(0);
+    return;
+  }
+
+  currentPlayer = nextActivePlayer(currentPlayer);
+  clearSelections();
+  processTurn();
+}
+
+function passTurn() {
+  if (gameOver || threePhase || currentPlayer !== 0 || passedPlayers.includes(0)) return;
+
+  passedPlayers.push(0);
+  addLog('<strong>' + playerNames[0] + '</strong> passed.', true);
+
+  const activeCount = 4 - finishedOrder.length;
+  if (passedPlayers.length === activeCount - 1) {
+    addLog('Trick won by <strong>' + playerNames[currentComboPlayer] + '</strong>. New trick starts.', isHuman[currentComboPlayer]);
+    currentPlayer = currentComboPlayer;
+    if (finishedOrder.includes(currentPlayer)) {
+      currentPlayer = nextActivePlayer(currentPlayer);
+    }
+    currentCombo = null;
+    currentComboPlayer = -1;
+    passedPlayers = [];
+    trickLeader = currentPlayer;
+  } else {
+    currentPlayer = nextActivePlayer(currentPlayer);
+  }
+
+  clearSelections();
+  processTurn();
+}
+
+function playerFinished(finisher) {
+  finishedOrder.push(finisher);
+  addLog('<strong>' + playerNames[finisher] + '</strong> finished! (' + finishedOrder.length + '/3 needed)', isHuman[finisher]);
+
+  if (finishedOrder.length >= 3) {
+    const loser = [0, 1, 2, 3].find(p => !finishedOrder.includes(p));
+    endGame(loser);
+  } else {
+    if (finishedOrder.includes(currentPlayer)) {
+      currentPlayer = [0, 1, 2, 3].find(p => !finishedOrder.includes(p));
+    }
+    currentCombo = null;
+    currentComboPlayer = -1;
+    passedPlayers = [];
+    render();
+    processTurn();
+  }
+}
+
+function nextActivePlayer(from) {
+  let next = (from + 1) % 4;
+  let count = 0;
+  while (finishedOrder.includes(next) && count < 4) {
+    next = (next + 1) % 4;
+    count++;
+  }
+  return next;
+}
+
+function endGame(loser) {
+  gameOver = true;
+  if (aiTimeout) clearTimeout(aiTimeout);
+
+  const ranking = [...finishedOrder, loser];
+  const points = [10, 5, 0, -15];
+  for (let i = 0; i < 4; i++) {
+    scores[ranking[i]] += points[i];
+  }
+
+  addLog('<strong>' + playerNames[loser] + '</strong> is last! ' + (isHuman[loser] ? 'You lost!' : 'Bot loses!'), isHuman[loser]);
+  updateScoreboard();
+
+  const overlay = document.getElementById('gameover-overlay');
+  document.getElementById('winner-text').textContent = isHuman[loser] ? 'You Lost!' : playerNames[loser] + ' Lost!';
+  const fs = document.getElementById('final-scores');
+  fs.innerHTML = '';
+  const medals = ['🥇', '🥈', '🥉', '💀'];
+  ranking.forEach((p, idx) => {
+    const div = document.createElement('div');
+    div.textContent = medals[idx] + ' ' + playerNames[p] + ' — ' + (idx === 3 ? hands[p].length + ' cards left' : 'finished') + ' (' + scores[p] + ' pts)';
+    fs.appendChild(div);
+  });
+
+  overlay.classList.add('show');
+  render();
+}
+
+// --- Rendering ---
+function render() {
+  if (currentPlayer !== lastActivePlayer) {
+    clearSelections();
+    lastActivePlayer = currentPlayer;
+  }
+
+  for (let i = 0; i < 4; i++) {
+    const area = document.getElementById('player-' + i);
+    const isActive = i === currentPlayer && !gameOver;
+    area.classList.toggle('active-player', isActive);
+
+    const handClass = i === 2 ? 'hand-top' : i === 3 ? 'hand-left' : i === 1 ? 'hand-right' : 'hand-bottom';
+
+    let label = '';
+    if (isActive && !gameOver) {
+      label = '<span class="turn-badge">' + (isHuman[i] ? 'YOUR TURN' : 'THINKING...') + '</span>';
+    }
+    if (!isHuman[i]) {
+      label += ' <span class="bot-badge">BOT</span>';
+    }
+
+    area.innerHTML =
+      '<div class="player-label">' +
+        playerNames[i] +
+        ' <span class="card-count">(' + hands[i].length + ' cards)</span>' +
+        label +
+      '</div>' +
+      '<div class="hand ' + handClass + '" id="hand-' + i + '"></div>';
+
+    const handEl = document.getElementById('hand-' + i);
+    const isComputer = !isHuman[i];
+
+    hands[i].forEach((card, idx) => {
+      const cardEl = document.createElement('div');
+      if (isComputer) {
+        cardEl.className = 'card face-down';
+      } else {
+        const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+        cardEl.className = 'card ' + (isRed ? 'red' : 'black') + (card.selected ? ' selected' : '');
+        cardEl.innerHTML = '<span class="rank">' + card.rank + '</span><span class="suit">' + card.suitSymbol + '</span>';
+        cardEl.onclick = () => selectCard(i, idx);
+      }
+      handEl.appendChild(cardEl);
+    });
+  }
+
+  // Center area
+  const centerCards = document.getElementById('center-cards');
+  const centerInfo = document.getElementById('center-info');
+  const passMarkers = document.getElementById('pass-markers');
+
+  centerCards.innerHTML = '';
+  if (currentCombo) {
+    centerInfo.textContent = comboName(currentCombo) + ' by ' + playerNames[currentComboPlayer];
+    currentCombo.cards.forEach(card => {
+      const cardEl = document.createElement('div');
+      const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+      cardEl.className = 'card ' + (isRed ? 'red' : 'black');
+      cardEl.style.cursor = 'default';
+      cardEl.innerHTML = '<span class="rank">' + card.rank + '</span><span class="suit">' + card.suitSymbol + '</span>';
+      centerCards.appendChild(cardEl);
+    });
+  } else {
+    centerInfo.textContent = gameOver ? 'Game Over' : 'New trick — ' + playerNames[currentPlayer] + ' plays first';
+  }
+
+  passMarkers.innerHTML = '';
+  passedPlayers.forEach(p => {
+    const tag = document.createElement('span');
+    tag.className = 'pass-tag';
+    tag.textContent = playerNames[p] + ' Pass';
+    passMarkers.appendChild(tag);
+  });
+
+  // Action bar only visible for human player
+  const actionBar = document.getElementById('action-bar');
+  if (gameOver || currentPlayer !== 0) {
+    actionBar.classList.remove('visible');
+  } else {
+    actionBar.classList.add('visible');
+    updatePlayButton();
+  }
+}
+
+// Init
+render();
+</script>
+</body>
+</html>
