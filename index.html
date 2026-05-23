@@ -452,6 +452,22 @@ function compareByRankThenSuit(cardsA, cardsB) {
   return aHigh.rankIndex - bHigh.rankIndex;
 }
 
+function validatePlay(cards, tableCombo) {
+  if (!cards || cards.length === 0) return { valid: false, error: 'No cards selected', comboName: '' };
+
+  const combo = detectCombo(cards);
+  if (!combo) return { valid: false, error: 'Invalid combo', comboName: '' };
+
+  if (tableCombo) {
+    if (combo.cards.length !== tableCombo.cards.length || combo.type !== tableCombo.type)
+      return { valid: false, error: 'Must match: ' + comboName(tableCombo) + ' (' + tableCombo.cards.length + ' cards).', comboName: comboName(combo) };
+    if (compareCombos(combo, tableCombo) <= 0)
+      return { valid: false, error: 'Cannot beat: ' + tableCombo.cards.map(cardLabel).join(' '), comboName: comboName(combo) };
+  }
+
+  return { valid: true, error: '', comboName: comboName(combo), combo };
+}
+
 function comboName(combo) {
   const names = {
     single: 'Single', pair: 'Pair', triple: 'Triple',
@@ -1075,31 +1091,18 @@ function updatePlayButton() {
 
   if (selected.length === 0) {
     btnPlay.disabled = true;
+    previewEl.textContent = '';
     return;
   }
-
-  const combo = detectCombo(selected);
-  if (!combo) {
-    btnPlay.disabled = true;
-    previewEl.textContent = selected.length + ' cards (invalid)';
-    return;
-  }
-
-  previewEl.textContent = comboName(combo);
 
   const tableCombo = trick.getCombo();
-  if (tableCombo) {
-    if (combo.cards.length !== tableCombo.cards.length || combo.type !== tableCombo.type) {
-      btnPlay.disabled = true;
-      errorEl.textContent = 'Must match: ' + comboName(tableCombo) + ' (' + tableCombo.cards.length + ' cards).';
-      return;
-    }
-    const result = compareCombos(combo, tableCombo);
-    if (result <= 0) {
-      btnPlay.disabled = true;
-      errorEl.textContent = 'Cannot beat: ' + tableCombo.cards.map(cardLabel).join(' ');
-      return;
-    }
+  const validation = validatePlay(selected, tableCombo);
+  previewEl.textContent = validation.comboName || selected.length + ' cards (invalid)';
+
+  if (!validation.valid) {
+    btnPlay.disabled = true;
+    errorEl.textContent = validation.error || '';
+    return;
   }
 
   btnPlay.disabled = false;
@@ -1108,22 +1111,16 @@ function updatePlayButton() {
 function playCards() {
   if (gameOver || threePhase || currentPlayer !== 0) return;
   const selected = getSelectedCards();
-  if (selected.length === 0) return;
 
-  const combo = detectCombo(selected);
-  if (!combo) return;
-
-  if (trick.getCombo()) {
-    if (combo.cards.length !== trick.getCombo().cards.length || combo.type !== trick.getCombo().type) return;
-    const result = compareCombos(combo, trick.getCombo());
-    if (result <= 0) return;
-  }
+  const validation = validatePlay(selected, trick.getCombo());
+  if (!validation.valid) return;
+  const combo = validation.combo;
 
   const cardLabels = combo.cards.map(cardLabel).join(' ');
   hands[0] = hands[0].filter(c => !c.selected);
   trick.play(combo, 0);
 
-  addLog('<strong>' + playerNames[0] + '</strong> played ' + cardLabels + ' (' + comboName(combo) + ')', true);
+  addLog('<strong>' + playerNames[0] + '</strong> played ' + cardLabels + ' (' + validation.comboName + ')', true);
 
   if (hands[0].length === 0) {
     playerFinished(0);
