@@ -26,6 +26,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #header .controls { display: flex; gap: 8px; }
 #header button { padding: 6px 16px; background: #e94560; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
 #header button:hover { background: #c73650; }
+#sidebar-toggle-btn { padding: 6px 10px; background: #0f3460; font-size: 15px; }
+#sidebar-toggle-btn:hover { background: #1a4a7a; }
 
 /* Table area */
 #table-area { display: grid; grid-template-rows: 1fr 1fr 1fr; grid-template-columns: 1fr 1fr 1fr; position: relative; background: radial-gradient(ellipse at center, #1a5c2a 0%, #0d3518 100%); overflow: hidden; }
@@ -89,7 +91,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #combo-preview { color: #aaa; font-size: 12px; margin-left: 8px; white-space: nowrap; }
 
 /* Sidebar */
-#sidebar { background: #16213e; border-left: 2px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; }
+#app.no-sidebar { grid-template-columns: 1fr 0px; }
+#sidebar { background: #16213e; border-left: 2px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 #sidebar h3 { padding: 10px 12px; font-size: 14px; color: #e94560; border-bottom: 1px solid #0f3460; }
 #scoreboard { padding: 8px 12px; border-bottom: 1px solid #0f3460; }
 #scoreboard .score-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
@@ -147,13 +150,14 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* --- Responsive: Mobile (max 768px) --- */
 @media (max-width: 768px) {
-  #app {
+  #app, #app.no-sidebar {
     grid-template-columns: 1fr;
     grid-template-rows: 44px 1fr auto;
   }
   #header { padding: 0 10px; }
   #header h1 { font-size: 16px; }
   #header button { padding: 4px 12px; font-size: 12px; }
+  #sidebar-toggle-btn { display: none; }
 
   /* Sidebar moves to bottom, collapsible */
   #sidebar {
@@ -287,6 +291,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     <h1>Capsa Banting</h1>
     <div class="controls">
       <button onclick="newGame()">New Game</button>
+      <button onclick="toggleSidebar()" id="sidebar-toggle-btn">☰</button>
     </div>
   </div>
 
@@ -731,6 +736,10 @@ function startGame() {
 function newGame() {
   document.getElementById('gameover-overlay').classList.remove('show');
   document.getElementById('name-overlay').style.display = 'flex';
+}
+
+function toggleSidebar() {
+  document.getElementById('app').classList.toggle('no-sidebar');
 }
 
 function initGame() {
