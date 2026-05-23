@@ -1021,20 +1021,7 @@ function aiPass(playerIdx) {
   passedPlayers.push(playerIdx);
   addLog('<strong>' + playerNames[playerIdx] + '</strong> passed.', isHuman[playerIdx]);
 
-  const activeCount = 4 - finishedOrder.length;
-  if (passedPlayers.length === activeCount - 1) {
-    addLog('Trick won by <strong>' + playerNames[currentComboPlayer] + '</strong>. New trick starts.', isHuman[currentComboPlayer]);
-    currentPlayer = currentComboPlayer;
-    if (finishedOrder.includes(currentPlayer)) {
-      currentPlayer = nextActivePlayer(currentPlayer);
-    }
-    currentCombo = null;
-    currentComboPlayer = -1;
-    passedPlayers = [];
-    trickLeader = currentPlayer;
-  } else {
-    currentPlayer = nextActivePlayer(playerIdx);
-  }
+  resolveTrick(playerIdx);
 
   clearSelections();
   processTurn();
@@ -1149,6 +1136,13 @@ function passTurn() {
   passedPlayers.push(0);
   addLog('<strong>' + playerNames[0] + '</strong> passed.', true);
 
+  resolveTrick(0);
+
+  clearSelections();
+  processTurn();
+}
+
+function resolveTrick(passedPlayer) {
   const activeCount = 4 - finishedOrder.length;
   if (passedPlayers.length === activeCount - 1) {
     addLog('Trick won by <strong>' + playerNames[currentComboPlayer] + '</strong>. New trick starts.', isHuman[currentComboPlayer]);
@@ -1161,11 +1155,8 @@ function passTurn() {
     passedPlayers = [];
     trickLeader = currentPlayer;
   } else {
-    currentPlayer = nextActivePlayer(currentPlayer);
+    currentPlayer = nextActivePlayer(passedPlayer);
   }
-
-  clearSelections();
-  processTurn();
 }
 
 function playerFinished(finisher) {
