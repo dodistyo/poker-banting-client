@@ -262,7 +262,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     <div class="name-row"><label>Bot 1:</label><input id="name-1" value="Bot Ali"></div>
     <div class="name-row"><label>Bot 2:</label><input id="name-2" value="Bot Budi"></div>
     <div class="name-row"><label>Bot 3:</label><input id="name-3" value="Bot Cici"></div>
-    <button onclick="startGame()">Deal</button>
+    <button onclick="startGame()">Play</button>
   </div>
 </div>
 
@@ -281,7 +281,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   <div class="panel">
     <h2 id="winner-text"></h2>
     <div class="final-scores" id="final-scores"></div>
-    <button onclick="newGame()">Play Again</button>
+    <button onclick="nextRound()">Play Again</button>
   </div>
 </div>
 
@@ -723,6 +723,8 @@ let threePhaseIndex = 0;
 let threePhaseCards = [[], [], [], []];
 let threePhaseDiscarded = [false, false, false, false];
 let finishedOrder = [];
+let firstRound = true;
+let previousWinner = -1;
 
 function startGame() {
   for (let i = 0; i < 4; i++) {
@@ -736,6 +738,12 @@ function startGame() {
 function newGame() {
   document.getElementById('gameover-overlay').classList.remove('show');
   document.getElementById('name-overlay').style.display = 'flex';
+}
+
+function nextRound() {
+  document.getElementById('gameover-overlay').classList.remove('show');
+  firstRound = false;
+  initGame();
 }
 
 function toggleSidebar() {
@@ -767,36 +775,45 @@ function initGame() {
   document.getElementById('log').innerHTML = '';
   updateScoreboard();
 
-  addLog('New game started. ' + playerNames.join(', ') + '.', false);
+  if (firstRound) {
+    addLog('New game started. ' + playerNames.join(', ') + '.', false);
 
-  // Extract 3s from each hand for the 3-discard phase
-  for (let i = 0; i < 4; i++) {
-    threePhaseCards[i] = hands[i].filter(c => c.rank === '3');
-    hands[i] = hands[i].filter(c => c.rank !== '3');
+    // Extract 3s from each hand for the 3-discard phase
+    for (let i = 0; i < 4; i++) {
+      threePhaseCards[i] = hands[i].filter(c => c.rank === '3');
+      hands[i] = hands[i].filter(c => c.rank !== '3');
+    }
+
+    // Determine 3-discard order: most 3s first, then highest suit tiebreak
+    const threeInfo = [];
+    for (let i = 0; i < 4; i++) {
+      const threes = threePhaseCards[i];
+      const highestSuit = threes.length > 0 ? Math.max(...threes.map(c => c.suitOrder)) : -1;
+      threeInfo.push({ idx: i, count: threes.length, highestSuit });
+    }
+    threeInfo.sort((a, b) => b.count - a.count || b.highestSuit - a.highestSuit);
+    threePhaseOrder = threeInfo.map(t => t.idx);
+
+    addLog('--- 3s Discard Phase ---', false);
+    for (const t of threeInfo) {
+      addLog(playerNames[t.idx] + ': ' + t.count + ' three(s) (highest: ' + (t.count > 0 ? ['♦','♣','♥','♠'][t.highestSuit] : '—') + ')', false);
+    }
+
+    threePhase = true;
+    threePhaseIndex = 0;
+    currentPlayer = threePhaseOrder[0];
+
+    render();
+    renderThreePhaseOverlay();
+    processThreePhase();
+  } else {
+    // Subsequent rounds: previous winner starts, no 3-discard
+    currentPlayer = previousWinner >= 0 ? previousWinner : 0;
+    addLog('New round. ' + playerNames[currentPlayer] + ' (previous winner) starts.', isHuman[currentPlayer]);
+
+    render();
+    processTurn();
   }
-
-  // Determine 3-discard order: most 3s first, then highest suit tiebreak
-  const threeInfo = [];
-  for (let i = 0; i < 4; i++) {
-    const threes = threePhaseCards[i];
-    const highestSuit = threes.length > 0 ? Math.max(...threes.map(c => c.suitOrder)) : -1;
-    threeInfo.push({ idx: i, count: threes.length, highestSuit });
-  }
-  threeInfo.sort((a, b) => b.count - a.count || b.highestSuit - a.highestSuit);
-  threePhaseOrder = threeInfo.map(t => t.idx);
-
-  addLog('--- 3s Discard Phase ---', false);
-  for (const t of threeInfo) {
-    addLog(playerNames[t.idx] + ': ' + t.count + ' three(s) (highest: ' + (t.count > 0 ? ['♦','♣','♥','♠'][t.highestSuit] : '—') + ')', false);
-  }
-
-  threePhase = true;
-  threePhaseIndex = 0;
-  currentPlayer = threePhaseOrder[0];
-
-  render();
-  renderThreePhaseOverlay();
-  processThreePhase();
 }
 
 function addLog(msg, isHumanPlayer) {
@@ -1183,6 +1200,7 @@ function endGame(loser) {
   if (aiTimeout) clearTimeout(aiTimeout);
 
   const ranking = [...finishedOrder, loser];
+  previousWinner = ranking[0];
   const points = [10, 5, 0, -15];
   for (let i = 0; i < 4; i++) {
     scores[ranking[i]] += points[i];
