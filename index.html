@@ -64,7 +64,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .card .rank { font-size: 13px; line-height: 1; }
 .card .suit { font-size: 16px; line-height: 1; }
 .card.selected { border-color: #ffd700; transform: translateY(-6px); box-shadow: 0 4px 12px rgba(255,215,0,0.5); }
-.card:hover { border-color: #aaa; }
+.card:hover:not(.selected):not(.face-down) { transform: translateY(-8px) scale(1.08); box-shadow: 0 6px 16px rgba(255,255,255,0.2); border-color: #fff; z-index: 5; }
+.card.drag-placeholder { opacity: 0.25; transform: scale(0.85); transition: opacity 0.15s, transform 0.15s; }
+.card.drag-target { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,0.5); transform: scale(1.05); transition: transform 0.15s, box-shadow 0.15s; }
+.card.drag-follower { position: fixed; z-index: 9999; pointer-events: none; transform: translate(-50%, -50%) rotate(-3deg) scale(1.1); box-shadow: 0 12px 32px rgba(0,0,0,0.5); transition: none; }
 
 /* Face-down card */
 .card.face-down { background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border-color: #3a6a9c; cursor: default; }
@@ -82,6 +85,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #action-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; align-items: center; z-index: 10; background: rgba(0,0,0,0.6); padding: 6px 16px; border-radius: 10px; }
 #action-bar.visible { display: flex; }
 #action-bar button { padding: 8px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+#btn-sort { background: #2196f3; color: #fff; }
+#btn-sort:disabled { background: #555; color: #888; cursor: not-allowed; }
 #btn-play { background: #4caf50; color: #fff; }
 #btn-play:disabled { background: #555; color: #888; cursor: not-allowed; }
 #btn-pass { background: #ff9800; color: #fff; }
@@ -306,6 +311,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <div id="pass-markers"></div>
     </div>
     <div id="action-bar">
+      <button id="btn-sort" onclick="sortHand()">Sort</button>
       <button id="btn-play" onclick="playCards()">Play</button>
       <button id="btn-pass" onclick="passTurn()">Pass</button>
       <span id="combo-preview"></span>
@@ -1070,6 +1076,13 @@ function getSelectedCards() {
   return hands[0].filter(c => c.selected);
 }
 
+function sortHand() {
+  if (gameOver || threePhase) return;
+  clearSelections();
+  hands[0] = sortCards(hands[0]);
+  render();
+}
+
 function updatePlayButton() {
   if (currentPlayer !== 0) return;
 
@@ -1254,7 +1267,73 @@ function render() {
         const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
         cardEl.className = 'card ' + (isRed ? 'red' : 'black') + (card.selected ? ' selected' : '');
         cardEl.innerHTML = '<span class="rank">' + card.rank + '</span><span class="suit">' + card.suitSymbol + '</span>';
-        cardEl.onclick = () => selectCard(i, idx);
+       cardEl.onclick = (e) => { if (!cardEl._dragged) selectCard(i, idx); };
+          if (i === 0) {
+            cardEl.dataset.idx = idx;
+            cardEl.style.cursor = 'grab';
+            cardEl.onpointerdown = (e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+              cardEl._dragged = false;
+              const start = { x: e.clientX, y: e.clientY };
+              const fromIdx = idx;
+              cardEl.setPointerCapture(e.pointerId);
+
+              // Create floating follower
+              const rect = cardEl.getBoundingClientRect();
+              const follower = cardEl.cloneNode(true);
+              follower.className = cardEl.className + ' drag-follower';
+              follower.style.width = rect.width + 'px';
+              follower.style.height = rect.height + 'px';
+              follower.style.left = rect.left + rect.width / 2 + 'px';
+              follower.style.top = rect.top + rect.height / 2 + 'px';
+              document.body.appendChild(follower);
+              cardEl.classList.add('drag-placeholder');
+
+              let targetIdx = -1;
+
+              const onMove = (ev) => {
+                const dx = ev.clientX - start.x;
+                const dy = ev.clientY - start.y;
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) cardEl._dragged = true;
+                follower.style.left = ev.clientX + 'px';
+                follower.style.top = ev.clientY + 'px';
+
+                // Find card under cursor
+                document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+                const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
+                if (elUnder) {
+                  const targetEl = elUnder.closest('.hand-bottom .card[data-idx]');
+                  if (targetEl && targetEl !== cardEl) {
+                    targetEl.classList.add('drag-target');
+                    targetIdx = parseInt(targetEl.dataset.idx);
+                  } else {
+                    targetIdx = -1;
+                  }
+                }
+              };
+
+              const onUp = (ev) => {
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+                follower.remove();
+                cardEl.classList.remove('drag-placeholder');
+                document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+
+                if (cardEl._dragged && targetIdx >= 0 && targetIdx !== fromIdx) {
+                  // Adjust index if source was before target
+                  let adjTarget = targetIdx;
+                  if (fromIdx < targetIdx) adjTarget = targetIdx - 1;
+                  const [moved] = hands[0].splice(fromIdx, 1);
+                  hands[0].splice(adjTarget, 0, moved);
+                  render();
+                }
+              };
+
+              document.addEventListener('pointermove', onMove);
+              document.addEventListener('pointerup', onUp);
+            };
+          }
       }
       handEl.appendChild(cardEl);
     });
@@ -1293,8 +1372,10 @@ function render() {
   const actionBar = document.getElementById('action-bar');
   if (gameOver || currentPlayer !== 0) {
     actionBar.classList.remove('visible');
+    document.getElementById('btn-sort').disabled = true;
   } else {
     actionBar.classList.add('visible');
+    document.getElementById('btn-sort').disabled = false;
     updatePlayButton();
   }
 }
