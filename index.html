@@ -49,9 +49,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* Hands */
 .hand { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
-.hand-bottom { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 10px 0 4px; }
-.hand-bottom::-webkit-scrollbar { height: 4px; }
-.hand-bottom::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+.hand-bottom { flex-wrap: nowrap; overflow-x: hidden; overflow-y: hidden; padding: 10px 8px 4px; }
 .hand-top { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
 .hand-left, .hand-right { flex-direction: column; }
 .hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -8px 0; }
@@ -64,7 +62,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .card .rank { font-size: 13px; line-height: 1; }
 .card .suit { font-size: 16px; line-height: 1; }
 .card.selected { border-color: #ffd700; transform: translateY(-6px); box-shadow: 0 4px 12px rgba(255,215,0,0.5); }
-.card:hover:not(.selected):not(.face-down) { transform: translateY(-8px) scale(1.08); box-shadow: 0 6px 16px rgba(255,255,255,0.2); border-color: #fff; z-index: 5; }
+.card.card-hovered:not(.selected):not(.face-down) { transform: scale(1.08); transform-origin: bottom center; box-shadow: 0 6px 16px rgba(255,255,255,0.2); border-color: #fff; z-index: 5; }
 .card.drag-placeholder { opacity: 0.25; transform: scale(0.85); transition: opacity 0.15s, transform 0.15s; }
 .card.drag-target { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,0.5); transform: scale(1.05); transition: transform 0.15s, box-shadow 0.15s; }
 .card.drag-follower { position: fixed; z-index: 9999; pointer-events: none; transform: translate(-50%, -50%) rotate(-3deg) scale(1.1); box-shadow: 0 12px 32px rgba(0,0,0,0.5); transition: none; }
@@ -1268,6 +1266,8 @@ function render() {
         cardEl.className = 'card ' + (isRed ? 'red' : 'black') + (card.selected ? ' selected' : '');
         cardEl.innerHTML = '<span class="rank">' + card.rank + '</span><span class="suit">' + card.suitSymbol + '</span>';
        cardEl.onclick = (e) => { if (!cardEl._dragged) selectCard(i, idx); };
+          cardEl.onpointerenter = () => cardEl.classList.add('card-hovered');
+          cardEl.onpointerleave = () => cardEl.classList.remove('card-hovered');
           if (i === 0) {
             cardEl.dataset.idx = idx;
             cardEl.style.cursor = 'grab';
