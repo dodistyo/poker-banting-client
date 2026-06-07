@@ -1,0 +1,15 @@
+{
+  "name": "pocer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Capsa Banting card game",
+  "scripts": {
+    "test": "node test/*.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}
