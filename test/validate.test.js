@@ -66,10 +66,10 @@ test('higher single beats lower single', () => {
   assert.strictEqual(r.valid, true);
 });
 
-test('same rank higher suit beats', () => {
+test('same rank different suit cannot beat', () => {
   const table = detectCombo([mkCard('K', 'd')]);
   const r = validatePlay([mkCard('K', 's')], table);
-  assert.strictEqual(r.valid, true);
+  assert.strictEqual(r.valid, false);
 });
 
 test('same rank same suit cannot beat', () => {

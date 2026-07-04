@@ -40,6 +40,7 @@ function handleMessage(msg) {
       state = adaptState(msg.state);
       handlePhase();
       render(state);
+      clearLog();
       break;
 
     case 'joined':
@@ -47,6 +48,7 @@ function handleMessage(msg) {
       state = adaptState(msg.state);
       handlePhase();
       render(state);
+      clearLog();
       break;
 
     case 'state':
@@ -329,6 +331,14 @@ export function nextRound() {
 
 export function toggleSidebar() {
   document.getElementById('app').classList.toggle('no-sidebar');
+}
+
+function clearLog() {
+  const logEl = document.getElementById('log');
+  if (logEl) {
+    logEl.innerHTML = '';
+    logEl.dataset.renderedCount = '0';
+  }
 }
 
 function updatePlayButton() {

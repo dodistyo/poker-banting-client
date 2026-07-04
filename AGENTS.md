@@ -22,7 +22,7 @@ Tests use Node's built-in `assert` module. No test framework installed.
 
 - 4 players (1 human + 3 AI bots), standard 52-card deck, 13 cards each
 - Rank order: 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 2
-- Suit tiebreak: diamonds < clubs < hearts < spades
+- Suit order: diamonds < clubs < hearts < spades (only used for 3-discard phase tiebreak, not trick play)
 - Valid combos: single, pair, triple, straight (3-5 cards, same suit), full house, four of a kind
 - Straights must be all-numbers (3–9) or all-letters (10–A), never mixed. 2s cannot appear in straights.
 - First round: 3-discard phase — players discard all their 3s, ordered by most 3s first (highest suit tiebreak)

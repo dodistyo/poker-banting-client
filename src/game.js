@@ -86,8 +86,7 @@ export function compareCombos(comboA, comboB) {
     case 'single': {
       const aHigh = comboA.cards[comboA.cards.length - 1];
       const bHigh = comboB.cards[comboB.cards.length - 1];
-      if (aHigh.rankIndex !== bHigh.rankIndex) return aHigh.rankIndex - bHigh.rankIndex;
-      return aHigh.suitOrder - bHigh.suitOrder;
+      return aHigh.rankIndex - bHigh.rankIndex;
     }
     case 'pair':
     case 'triple':

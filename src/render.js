@@ -295,15 +295,17 @@ function renderLog(state) {
   if (!logEl) return;
 
   const logEntries = state.log || [];
-  if (logEntries.length === 0) return;
+  const renderedCount = parseInt(logEl.dataset.renderedCount || '0');
 
-  const lastEntry = logEntries[logEntries.length - 1];
-  if (logEl.dataset.lastLog === lastEntry) return;
-  logEl.dataset.lastLog = lastEntry;
+  if (logEntries.length <= renderedCount) return;
 
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  entry.textContent = lastEntry;
-  logEl.appendChild(entry);
+  for (let i = renderedCount; i < logEntries.length; i++) {
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.textContent = logEntries[i];
+    logEl.appendChild(entry);
+  }
+
+  logEl.dataset.renderedCount = logEntries.length;
   logEl.scrollTop = logEl.scrollHeight;
 }
