@@ -6,7 +6,6 @@ let state = null;
 let playerId = null;
 let roomCode = null;
 let serverUrl = 'ws://' + location.hostname + ':8080/ws';
-
 export function getSTATE() { return state; }
 export function getPlayerId() { return playerId; }
 
