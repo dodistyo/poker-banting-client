@@ -67,7 +67,16 @@ export function render(state) {
         const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
         cardEl.className = 'card ' + (isRed ? 'red' : 'black') + (card.selected ? ' selected' : '');
         cardEl.innerHTML = '<span class="rank">' + card.rank + '</span><span class="suit">' + card.suitSymbol + '</span>';
-        cardEl.onclick = (e) => { if (!cardEl._dragged) state.selectCard(i, idx); };
+        cardEl.onclick = (e) => {
+          if (!cardEl._dragged) {
+            if (navigator.vibrate) navigator.vibrate(10);
+            cardEl.classList.remove('tapped');
+            void cardEl.offsetWidth;
+            cardEl.classList.add('tapped');
+            setTimeout(() => cardEl.classList.remove('tapped'), 200);
+            state.selectCard(i, idx);
+          }
+        };
         cardEl.onpointerenter = () => cardEl.classList.add('card-hovered');
         cardEl.onpointerleave = () => cardEl.classList.remove('card-hovered');
 
@@ -141,6 +150,7 @@ export function render(state) {
 
   renderCenter(state);
   renderActionBar(state);
+  adjustHandSizing();
 }
 
 function renderCenter(state) {
@@ -308,4 +318,72 @@ function renderLog(state) {
 
   logEl.dataset.renderedCount = logEntries.length;
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+export function adjustHandSizing() {
+  // Clear all inline sizing — let CSS handle card sizes and centering
+  const allCards = document.querySelectorAll('.card');
+  allCards.forEach(c => {
+    c.style.width = ''; c.style.height = ''; c.style.minWidth = '';
+    const rankEl = c.querySelector('.rank');
+    const suitEl = c.querySelector('.suit');
+    if (rankEl) rankEl.style.fontSize = '';
+    if (suitEl) suitEl.style.fontSize = '';
+  });
+
+  const allHands = document.querySelectorAll('.hand-top, .hand-bottom, .hand-left, .hand-right');
+  allHands.forEach(h => {
+    h.style.gap = '';
+    h.style.justifyContent = '';
+    h.style.overflowX = '';
+    h.style.overflowY = '';
+  });
+
+  // Set paddingBottom on table-area for mobile to clear action bar + sidebar
+  const tableArea = document.getElementById('table-area');
+  if (!tableArea) return;
+
+  const isMobilePortrait = window.matchMedia('(max-width: 768px) and (orientation: portrait)').matches;
+  const isMobileLandscape = window.matchMedia('(max-height: 768px) and (orientation: landscape) and (min-width: 480px)').matches;
+  const isShortLandscape = window.matchMedia('(max-height: 400px) and (orientation: landscape)').matches;
+  const isMobile = isMobilePortrait || isMobileLandscape || isShortLandscape;
+
+  if (isMobile) {
+    const sidebar = document.getElementById('sidebar');
+    const actionBar = document.getElementById('action-bar');
+    const sidebarHeight = sidebar ? sidebar.offsetHeight : 60;
+    const actionBarHeight = actionBar && actionBar.classList.contains('visible') ? actionBar.offsetHeight : 44;
+    const clearance = sidebarHeight + actionBarHeight + 16;
+    tableArea.style.paddingBottom = clearance + 'px';
+
+    // Scale bottom hand cards to fit available width on mobile
+    const handBottom = document.querySelector('.hand-bottom');
+    if (handBottom) {
+      const cards = handBottom.querySelectorAll('.card');
+      if (cards.length > 0) {
+        const handRect = handBottom.getBoundingClientRect();
+        const style = getComputedStyle(handBottom);
+        const paddingL = parseFloat(style.paddingLeft) || 0;
+        const paddingR = parseFloat(style.paddingRight) || 0;
+        const availWidth = handRect.width - paddingL - paddingR;
+        const gap = 1;
+        const overlap = -6;
+        const effectiveGap = cards.length > 1 ? Math.max(gap, overlap) : 0;
+        const totalGap = effectiveGap * (cards.length - 1);
+        const cardW = Math.max(16, Math.min(44, Math.floor((availWidth - totalGap) / cards.length)));
+        const cardH = Math.round(cardW * 1.375);
+        cards.forEach(c => {
+          c.style.width = cardW + 'px';
+          c.style.height = cardH + 'px';
+          c.style.minWidth = cardW + 'px';
+          const rankEl = c.querySelector('.rank');
+          const suitEl = c.querySelector('.suit');
+          if (rankEl) rankEl.style.fontSize = Math.max(7, Math.round(cardW * 0.44)) + 'px';
+          if (suitEl) suitEl.style.fontSize = Math.max(8, Math.round(cardW * 0.56)) + 'px';
+        });
+      }
+    }
+  } else {
+    tableArea.style.paddingBottom = '';
+  }
 }

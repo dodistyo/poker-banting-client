@@ -1,5 +1,5 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
-import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby } from './render.js';
+import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
 import { connect, disconnect, createRoom, joinRoom, sendPlay, sendPass, isConnected } from './network.js';
 
 let state = null;
@@ -13,6 +13,18 @@ export function initClient(url) {
   serverUrl = url || serverUrl;
 
   connect(serverUrl, handleMessage, onConnect, onDisconnect);
+
+  // Resize observer for dynamic hand sizing
+  let resizeTimer = null;
+  const onResize = () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (state) adjustHandSizing(); }, 100);
+  };
+  window.addEventListener('resize', onResize);
+  const tableArea = document.getElementById('table-area');
+  if (tableArea && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(onResize).observe(tableArea);
+  }
 }
 
 function onConnect() {
@@ -284,6 +296,7 @@ export function getSelectedCards() {
 }
 
 export function playCards() {
+  if (navigator.vibrate) navigator.vibrate(15);
   if (!state || state.gameOver || state.threePhase) return;
   if (playerId === null || state.currentPlayer !== playerId) return;
 
@@ -302,6 +315,7 @@ export function playCards() {
 }
 
 export function passTurn() {
+  if (navigator.vibrate) navigator.vibrate(15);
   if (!state || state.gameOver || state.threePhase) return;
   if (playerId === null || state.currentPlayer !== playerId) return;
   if (state.trick.passed.includes(playerId)) return;
@@ -310,6 +324,7 @@ export function passTurn() {
 }
 
 export function sortHand() {
+  if (navigator.vibrate) navigator.vibrate(15);
   if (!state || state.gameOver || state.threePhase) return;
   if (playerId === null) return;
 
