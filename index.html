@@ -63,7 +63,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .hand { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
 .hand-bottom { flex-wrap: nowrap; overflow-x: hidden; overflow-y: visible; padding: 10px 8px 4px; }
 .hand-bottom .card:first-child { margin-left: 0; }
-.hand-top { display: flex; flex-wrap: nowrap; overflow: hidden; padding: 4px 8px; justify-content: center; gap: 0; }
+.hand-top { display: flex; flex-wrap: nowrap; }
 .hand-top .card {
     width: 28px;
     height: 40px;
@@ -72,7 +72,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 }
 .hand-top .card:first-child { margin-left: 0; }
 .hand-top .card .rank, .hand-top .card .suit { display: none; }
-.hand-top .card.face-down::after { font-size: 12px; transform: rotate(180deg); }
+.hand-top .card.face-down::after { transform: rotate(180deg); }
 .hand-left, .hand-right { flex-direction: column; }
 .hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -6px 0; width: 28px; height: 40px; flex-shrink: 0; }
 .hand-left .card.selected, .hand-right .card.selected { transform: rotate(90deg) translateY(-6px); }
