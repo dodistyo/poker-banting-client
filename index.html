@@ -6,7 +6,7 @@
 <title>Capsa Banting</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; height: 100dvh; overflow: hidden; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; height: 100dvh; overflow: visible; }
 
 /* Lobby overlay */
 #lobby-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
@@ -25,13 +25,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #lobby-error { color: #ff5252; font-size: 12px; margin-top: 8px; min-height: 16px; }
 
 /* Connection status */
-#connection-status { font-size: 11px; padding: 2px 8px; border-radius: 8px; }
+#connection-status { font-size: 10px; padding: 2px 10px; border-radius: 8px; position: absolute; left: 50%; transform: translateX(-50%); }
 #connection-status.connected { background: #2e7d32; color: #fff; }
 #connection-status.disconnected { background: #c62828; color: #fff; }
 
 /* Main layout */
 #app { display: grid; grid-template-columns: 1fr 260px; grid-template-rows: 50px 1fr; height: 100vh; height: 100dvh; }
-#header { grid-column: 1 / -1; background: #16213e; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 2px solid #0f3460; }
+#header { grid-column: 1 / -1; background: #16213e; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 2px solid #0f3460; position: relative; }
 #header h1 { color: #e94560; font-size: 20px; }
 #header .controls { display: flex; gap: 8px; align-items: center; }
 #header button { padding: 6px 16px; background: #e94560; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
@@ -44,9 +44,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* Player areas */
 .player-area { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; position: relative; }
+.player-area.pos-bottom { justify-content: flex-start; }
  .player-area.pos-top { grid-row: 1; grid-column: 2; }
   .player-area.pos-right { grid-row: 2; grid-column: 3; }
-  .player-area.pos-bottom { grid-row: 3; grid-column: 2; padding-bottom: 56px; }
+  .player-area.pos-bottom { grid-row: 3; grid-column: 2; padding-bottom: 72px; }
   .player-area.pos-left { grid-row: 2; grid-column: 1; }
 
 .player-label { font-size: 13px; font-weight: 600; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
@@ -60,18 +61,22 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* Hands */
 .hand { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
-.hand-bottom { flex-wrap: nowrap; overflow-x: hidden; overflow-y: hidden; padding: 10px 8px 4px; }
-.hand-top { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+.hand-bottom { flex-wrap: nowrap; overflow-x: hidden; overflow-y: visible; padding: 10px 8px 4px; }
+.hand-bottom .card:first-child { margin-left: 0; }
+.hand-top { display: flex; flex-wrap: nowrap; overflow: hidden; padding: 4px 8px; justify-content: center; gap: 0; }
 .hand-top .card {
-    width: 56px;
+    width: 28px;
     height: 40px;
-    margin-left: -8px;
+    margin-left: -6px;
+    flex-shrink: 0;
 }
+.hand-top .card:first-child { margin-left: 0; }
 .hand-top .card .rank, .hand-top .card .suit { display: none; }
-.hand-top .card.face-down::after { font-size: 24px; }
+.hand-top .card.face-down::after { font-size: 12px; transform: rotate(180deg); }
 .hand-left, .hand-right { flex-direction: column; }
-.hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -8px 0; }
+.hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -6px 0; width: 28px; height: 40px; flex-shrink: 0; }
 .hand-left .card.selected, .hand-right .card.selected { transform: rotate(90deg) translateY(-6px); }
+.hand-right .card.face-down::after { transform: rotate(180deg); }
 
 /* Cards */
 .card { width: 40px; height: 56px; border-radius: 5px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; cursor: pointer; border: 2px solid #ccc; user-select: none; transition: transform 0.15s, box-shadow 0.15s; position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; margin-left: -10px; }
@@ -81,7 +86,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .card.black { color: #222; }
 .card .rank { font-size: 13px; line-height: 1; }
 .card .suit { font-size: 16px; line-height: 1; }
-.card.selected { border-color: #ffd700; transform: translateY(-6px); box-shadow: 0 4px 12px rgba(255,215,0,0.5); }
+.card.selected { border-color: #ffd700; transform: translateY(-6px); box-shadow: 0 4px 12px rgba(255,215,0,0.5); z-index: 10; }
 .card.card-hovered:not(.selected):not(.face-down) { transform: scale(1.08); transform-origin: bottom center; box-shadow: 0 6px 16px rgba(255,255,255,0.2); border-color: #fff; z-index: 5; }
 .card.drag-placeholder { opacity: 0.25; transform: scale(0.85); transition: opacity 0.15s, transform 0.15s; }
 .card.drag-target { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,0.5); transform: scale(1.05); transition: transform 0.15s, box-shadow 0.15s; }
@@ -107,7 +112,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .pass-tag { font-size: 11px; color: #ff8a80; background: rgba(255,0,0,0.1); padding: 1px 8px; border-radius: 8px; }
 
 /* Action bar */
-#action-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; align-items: center; z-index: 100; background: rgba(0,0,0,0.6); padding: 6px 16px; border-radius: 10px; max-width: calc(100% - 16px); }
+#action-bar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; align-items: center; z-index: 100; background: rgba(0,0,0,0.6); padding: 6px 16px; border-radius: 10px; max-width: calc(100% - 16px); }
 #action-bar.visible { display: flex; }
 #action-bar button { padding: 8px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 #btn-sort { background: #2196f3; color: #fff; }
@@ -198,6 +203,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     grid-template-columns: 1fr;
     grid-template-rows: 44px 1fr auto;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow: visible;
   }
   #header { padding: 0 10px; }
   #header h1 { font-size: 16px; }
@@ -253,7 +259,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   }
   .player-area.pos-bottom {
     grid-row: 3; grid-column: 1 / -1;
-    padding-bottom: 8px;
+    padding: 16px 4px calc(64px + 16px + env(safe-area-inset-bottom, 0px));
+    overflow: visible;
   }
   .player-area.pos-left {
     grid-row: 2; grid-column: 1;
@@ -277,22 +284,25 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   /* Opponent hands: compact card-back strips, JS-scaled to fit */
   .hand-top {
     flex-wrap: nowrap;
-    gap: 1px;
-    overflow: hidden;
+    gap: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
     max-width: 100%;
     scrollbar-width: none;
     justify-content: center;
     width: 100%;
+    padding: 2px 0;
   }
   .hand-top::-webkit-scrollbar { display: none; }
-  .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; }
+  .hand-top .card { width: 22px; height: 32px; flex-shrink: 0; margin-left: -5px; }
+  .hand-top .card:first-child { margin-left: 0; }
   .hand-top .card .rank, .hand-top .card .suit { display: none; }
-  .hand-top .card.face-down::after { font-size: 10px; }
+  .hand-top .card.face-down::after { font-size: 14px; transform: rotate(180deg); }
 
   .hand-left, .hand-right {
     flex-direction: column;
-    gap: 1px;
-    overflow-y: hidden;
+    gap: 0;
+    overflow-y: auto;
     overflow-x: hidden;
     max-height: calc(100dvh - 220px);
     min-height: 60px;
@@ -300,26 +310,29 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     width: 100%;
     align-items: center;
     justify-content: center;
+    padding: 2px 0;
   }
   .hand-left::-webkit-scrollbar, .hand-right::-webkit-scrollbar { display: none; }
   .hand-left .card, .hand-right .card {
     transform: rotate(90deg);
-    width: 16px;
-    height: 22px;
-    margin: -4px 0;
+    width: 22px;
+    height: 32px;
+    margin: -5px 0;
     flex-shrink: 0;
   }
+  .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card .rank, .hand-left .card .suit,
   .hand-right .card .rank, .hand-right .card .suit { display: none; }
   .hand-left .card.face-down::after,
-  .hand-right .card.face-down::after { font-size: 10px; }
+  .hand-right .card.face-down::after { font-size: 14px; }
+  .hand-right .card.face-down::after { transform: rotate(180deg); }
 
   /* Human hand: JS-scaled to always fit, no scroll */
   .hand-bottom {
     flex-wrap: nowrap;
     gap: 1px;
-    overflow: hidden;
-    padding: 2px 2px 1px;
+    overflow: visible;
+    padding: 18px 2px 18px;
     scrollbar-width: none;
     max-width: 100%;
     width: 100%;
@@ -327,6 +340,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     justify-content: center;
   }
   .hand-bottom::-webkit-scrollbar { display: none; }
+
+  .card.selected {
+    transform: translateY(-10px);
+    border-color: #ffd700;
+    box-shadow: 0 4px 12px rgba(255,215,0,0.5);
+    z-index: 10;
+  }
 
   /* Cards: JS-scaled to fit, no scroll */
   .card {
@@ -418,7 +438,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   }
   .player-area.pos-bottom {
     grid-row: 3; grid-column: 1 / -1;
-    padding-bottom: 8px;
+    padding-bottom: calc(84px + 16px + env(safe-area-inset-bottom, 0px));
   }
   .player-area.pos-left {
     grid-row: 2; grid-column: 1;
@@ -432,31 +452,41 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   }
   #center-area { grid-row: 2; grid-column: 2; }
 
-  .hand-top { flex-wrap: nowrap; gap: 1px; }
-  .hand-top .card { width: 16px; height: 22px; }
+  .hand-top { flex-wrap: nowrap; gap: 0; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+  .hand-top .card { width: 20px; height: 28px; flex-shrink: 0; margin-left: -4px; }
+  .hand-top .card:first-child { margin-left: 0; }
   .hand-top .card .rank, .hand-top .card .suit { display: none; }
-  .hand-top .card.face-down::after { font-size: 10px; }
+  .hand-top .card.face-down::after { font-size: 12px; transform: rotate(180deg); }
 
-  .hand-left, .hand-right { flex-direction: column; gap: 1px; justify-content: center; }
+  .hand-left, .hand-right { flex-direction: column; gap: 0; justify-content: center; overflow-y: auto; scrollbar-width: none; padding: 2px 0; }
   .hand-left .card, .hand-right .card {
     transform: rotate(90deg);
-    width: 16px; height: 22px;
-    margin: -5px 0;
+    width: 20px; height: 28px;
+    margin: -4px 0;
+    flex-shrink: 0;
   }
+  .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card .rank, .hand-left .card .suit,
   .hand-right .card .rank, .hand-right .card .suit { display: none; }
   .hand-left .card.face-down::after,
-  .hand-right .card.face-down::after { font-size: 10px; }
+  .hand-right .card.face-down::after { font-size: 12px; }
+  .hand-right .card.face-down::after { transform: rotate(180deg); }
 
   .hand-bottom {
     flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 4px 2px 2px;
+    overflow: visible;
+    padding: 18px 2px 2px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   .hand-bottom::-webkit-scrollbar { display: none; }
+
+  .card.selected {
+    transform: translateY(-10px);
+    border-color: #ffd700;
+    box-shadow: 0 4px 12px rgba(255,215,0,0.5);
+    z-index: 10;
+  }
 
   .card { width: 36px; height: 50px; min-width: 36px; margin-left: 0; }
   .card .rank { font-size: 10px; }
@@ -512,12 +542,15 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .card .rank { font-size: 9px; }
   .card .suit { font-size: 11px; }
   .card.face-down::after { font-size: 14px; }
-  .hand-top .card { width: 14px; height: 20px; }
-  .hand-top .card.face-down::after { font-size: 9px; }
-  .hand-left, .hand-right { justify-content: center; }
-  .hand-left .card, .hand-right .card { width: 14px; height: 20px; margin: -4px 0; }
+  .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; margin-left: -3px; }
+  .hand-top .card:first-child { margin-left: 0; }
+  .hand-top .card.face-down::after { font-size: 10px; transform: rotate(180deg); }
+  .hand-left, .hand-right { justify-content: center; gap: 0; }
+  .hand-left .card, .hand-right .card { width: 16px; height: 22px; margin: -3px 0; flex-shrink: 0; }
+  .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card.face-down::after,
-  .hand-right .card.face-down::after { font-size: 9px; }
+  .hand-right .card.face-down::after { font-size: 10px; }
+  .hand-right .card.face-down::after { transform: rotate(180deg); }
   #action-bar { padding: 4px 6px; gap: 4px; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); left: 4px; right: 4px; transform: none; z-index: 20; flex-wrap: wrap; justify-content: stretch; }
   #action-bar #combo-preview, #action-bar #error-msg { width: 100%; text-align: center; order: -1; }
   #action-bar button { padding: 6px 10px; font-size: 11px; min-height: 32px; min-width: 44px; flex: 1 1 auto; }
@@ -540,12 +573,16 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .card .rank { font-size: 10px; }
   .card .suit { font-size: 12px; }
   .card.face-down::after { font-size: 14px; }
-  .hand-bottom { gap: 1px; max-width: 100%; padding: 2px 4px 1px; overflow: hidden; }
-  .hand-top .card { width: 14px; height: 20px; }
-  .hand-top .card.face-down::after { font-size: 9px; }
-  .hand-left, .hand-right { justify-content: center; }
-  .hand-left .card, .hand-right .card { width: 14px; height: 20px; margin: -3px 0; }
-  .hand-left .card.face-down::after, .hand-right .card.face-down::after { font-size: 9px; }
+  .hand-bottom { gap: 1px; max-width: 100%; padding: 18px 4px 1px; overflow: visible; }
+  .card.selected { transform: translateY(-10px); border-color: #ffd700; box-shadow: 0 4px 12px rgba(255,215,0,0.5); z-index: 10; }
+  .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; margin-left: -3px; }
+  .hand-top .card:first-child { margin-left: 0; }
+  .hand-top .card.face-down::after { font-size: 10px; transform: rotate(180deg); }
+  .hand-left, .hand-right { justify-content: center; gap: 0; }
+  .hand-left .card, .hand-right .card { width: 16px; height: 22px; margin: -3px 0; flex-shrink: 0; }
+  .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
+  .hand-left .card.face-down::after, .hand-right .card.face-down::after { font-size: 10px; }
+  .hand-right .card.face-down::after { transform: rotate(180deg); }
   .player-label { font-size: 9px; gap: 2px; }
   .player-label .card-count { font-size: 8px; }
   .player-label .turn-badge, .player-label .bot-badge, .player-label .finished-badge { font-size: 8px; padding: 1px 4px; }
@@ -610,10 +647,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   <div id="header">
     <h1>Capsa Banting</h1>
     <div class="controls">
-      <span id="connection-status" class="disconnected">Disconnected</span>
       <button onclick="toggleSidebar()" id="sidebar-toggle-btn">&#9776;</button>
       <span id="room-code-header" style="display:none; color: #ffd700; font-family: monospace; font-size: 14px; margin-right: 10px;"></span>
     </div>
+    <span id="connection-status" class="disconnected">Disconnected</span>
   </div>
 
   <div id="table-area">

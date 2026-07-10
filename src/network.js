@@ -2,12 +2,14 @@ let ws = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 let pingTimer = null;
+let pongTimer = null;
 let onMessageCb = null;
 let onOpenCb = null;
 let onCloseCb = null;
 let connectUrl = null;
 const MAX_RECONNECT_DELAY = 8000;
 const PING_INTERVAL = 25000;
+const PONG_TIMEOUT = 10000;
 
 export function connect(url, onMessage, onOpen, onClose) {
   connectUrl = url;
@@ -30,7 +32,11 @@ export function connect(url, onMessage, onOpen, onClose) {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      if (data.type === 'pong') return;
+      if (data.type === 'pong') {
+        clearTimeout(pongTimer);
+        pongTimer = null;
+        return;
+      }
       if (onMessageCb) onMessageCb(data);
     } catch (e) {
       console.error('Failed to parse message:', e);
@@ -97,7 +103,8 @@ export function getWs() {
 
 function scheduleReconnect() {
   if (!connectUrl) return;
-  const delay = Math.min(MAX_RECONNECT_DELAY, 1000 * Math.pow(2, reconnectAttempts));
+  const jitter = Math.random() * 500;
+  const delay = Math.min(MAX_RECONNECT_DELAY, 1000 * Math.pow(2, reconnectAttempts)) + jitter;
   reconnectAttempts++;
   reconnectTimer = setTimeout(() => {
     connect(connectUrl, onMessageCb, onOpenCb, onCloseCb);
@@ -107,6 +114,10 @@ function scheduleReconnect() {
 function startPing() {
   stopPing();
   pingTimer = setInterval(() => {
+    clearTimeout(pongTimer);
+    pongTimer = setTimeout(() => {
+      if (ws) ws.close(4000, 'pong timeout');
+    }, PONG_TIMEOUT);
     send({ type: 'ping' });
   }, PING_INTERVAL);
 }
@@ -115,5 +126,9 @@ function stopPing() {
   if (pingTimer) {
     clearInterval(pingTimer);
     pingTimer = null;
+  }
+  if (pongTimer) {
+    clearTimeout(pongTimer);
+    pongTimer = null;
   }
 }
