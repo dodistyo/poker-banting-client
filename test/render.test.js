@@ -10,6 +10,7 @@ const test = (name, fn) => {
 
 const setupDOM = () => {
   const html = `
+    <div id="table-area"></div>
     <div id="player-0"></div>
     <div id="player-1"></div>
     <div id="player-2"></div>
@@ -38,6 +39,11 @@ const setupDOM = () => {
   const dom = new JSDOM(html);
   global.document = dom.window.document;
   global.window = dom.window;
+  global.window.matchMedia = global.window.matchMedia || (() => ({ matches: false }));
+  if (!global.requestAnimationFrame) {
+    global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    global.cancelAnimationFrame = (id) => clearTimeout(id);
+  }
 };
 
 function card(rank, suit) {

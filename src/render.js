@@ -454,7 +454,7 @@ function performHandSizing() {
   const actionBar = document.getElementById('action-bar');
   const sidebarHeight = sidebar ? sidebar.offsetHeight : 60;
   const actionBarHeight = actionBar && actionBar.classList.contains('visible') ? actionBar.offsetHeight : 44;
-  const clearance = sidebarHeight + actionBarHeight + 16;
+    const clearance = sidebarHeight + actionBarHeight + 4;
 
   const handBottom = document.querySelector('.hand-bottom');
   let cardW = 0, cardH = 0, rankFontSize = 0, suitFontSize = 0;
