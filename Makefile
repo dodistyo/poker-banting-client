@@ -3,7 +3,9 @@
 help:
 	@echo "Available targets:"
 	@echo "  test    - Run all tests"
- 	@echo "  serve   - Start dev server with hot reload (port 3000, LAN-accessible)"
+	@echo "  serve   - Start dev server (port 3000, LAN-accessible)"
+	@echo "            PROXY=false disables /api proxy"
+	@echo "            PROXY_TARGET=host:port sets backend (default: localhost:8080)"
 	@echo "  lint    - Run basic code checks"
 	@echo "  clean   - Remove node_modules"
 	@echo "  install - Install dependencies"
@@ -12,7 +14,7 @@ test:
 	npm test
 
 serve:
-	npx live-server --port=3000 --host=0.0.0.0 --no-browser --watch=src/,index.html
+	node dev-server.js
 
 lint:
 	npx eslint src/ --ext .js

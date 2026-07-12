@@ -2,9 +2,16 @@
 
 ## Structure
 
-Single-file app. Everything lives in `index.html`: HTML markup, CSS styles, and JavaScript game logic all inline. No build step, no dependencies, no framework.
+`index.html` — entry point, imports from `src/app.js` (ES modules). Game logic split across `src/` directory.
 
-Open `index.html` in a browser to play.
+## Dev Server
+
+`make serve` — starts `dev-server.js` on port 3000, proxies `/api` → `localhost:8080` (HTTP + WebSocket). Proxy strips `/api` prefix before forwarding.
+
+- `PROXY=false make serve` — disables proxy (static files only)
+- `PROXY_TARGET=host:port make serve` — custom backend target
+
+Backend URL in `src/app.js:8` resolves to `ws://location.host/api/ws`.
 
 ## Testing
 

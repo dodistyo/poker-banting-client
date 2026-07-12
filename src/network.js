@@ -74,6 +74,9 @@ export function disconnect() {
 export function send(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
+    console.log('[WS] Sent:', msg.type);
+  } else {
+    console.error('[WS] Cannot send — not connected. readyState:', ws ? ws.readyState : 'null');
   }
 }
 

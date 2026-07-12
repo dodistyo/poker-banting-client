@@ -73,9 +73,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .hand-top .card:first-child { margin-left: 0; }
 .hand-top .card .rank, .hand-top .card .suit { display: none; }
 .hand-top .card.face-down::after { transform: rotate(180deg); }
-.hand-left, .hand-right { flex-direction: column; }
+.hand-left, .hand-right { flex-direction: column; gap: 0; justify-content: center; }
 .hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -6px 0; width: 28px; height: 40px; flex-shrink: 0; }
 .hand-left .card.selected, .hand-right .card.selected { transform: rotate(90deg) translateY(-6px); }
+.hand-left .card .rank, .hand-left .card .suit,
+.hand-right .card .rank, .hand-right .card .suit { display: none; }
 .hand-right .card.face-down::after { transform: rotate(180deg); }
 
 /* Cards */
@@ -689,6 +691,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 <script type="module">
 import { handleCreateRoom, handleJoinRoom, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient } from './src/app.js';
 
+console.log('[INIT] Modules loaded successfully');
+
 window.handleCreateRoom = handleCreateRoom;
 window.handleJoinRoom = handleJoinRoom;
 window.sortHand = sortHand;
@@ -697,7 +701,20 @@ window.passTurn = passTurn;
 window.toggleSidebar = toggleSidebar;
 window.nextRound = nextRound;
 
+console.log('[INIT] Functions attached to window');
+
 initClient();
+
+console.log('[INIT] initClient called');
+</script>
+
+<script>
+window.addEventListener('error', (e) => {
+  console.error('[GLOBAL ERROR]', e.message, e.filename, e.lineno);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[UNHANDLED REJECTION]', e.reason);
+});
 </script>
 </body>
 </html>

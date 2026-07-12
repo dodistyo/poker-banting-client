@@ -5,7 +5,10 @@ import { connect, disconnect, createRoom, joinRoom, sendPlay, sendPass, isConnec
 let state = null;
 let playerId = null;
 let roomCode = null;
-let serverUrl = 'ws://' + location.hostname + ':8080/ws';
+let serverUrl =
+  (location.protocol === "https:" ? "wss://" : "ws://") +
+  location.host +
+  "/api/ws";
 export function getSTATE() { return state; }
 export function getPlayerId() { return playerId; }
 
@@ -253,8 +256,10 @@ function showError(message) {
 // --- Player actions ---
 
 export function handleCreateRoom() {
+  console.log('[UI] Create Room clicked');
   const nameInput = document.getElementById('lobby-name-input');
   const name = nameInput ? nameInput.value.trim() || 'You' : 'You';
+  console.log('[UI] Creating room as:', name);
   createRoom(name);
 }
 
