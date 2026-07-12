@@ -126,7 +126,6 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
       cardEl.onpointerenter = () => cardEl.classList.add('card-hovered');
       cardEl.onpointerleave = () => cardEl.classList.remove('card-hovered');
     } else {
-    } else {
       const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
       const expectedClass = 'card ' + (isRed ? 'red' : 'black') + (card.selected ? ' selected' : '');
       if (cardEl.className !== expectedClass) cardEl.className = expectedClass;
