@@ -16,6 +16,7 @@ export function connect(url, onMessage, onOpen, onClose) {
   onMessageCb = onMessage;
   onOpenCb = onOpen;
   onCloseCb = onClose;
+  console.log('[WS] Connecting to:', url);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.close();
@@ -25,6 +26,7 @@ export function connect(url, onMessage, onOpen, onClose) {
 
   ws.onopen = () => {
     reconnectAttempts = 0;
+    console.log('[WS] Connection opened, readyState:', ws.readyState);
     if (onOpenCb) onOpenCb();
     startPing();
   };
@@ -43,14 +45,15 @@ export function connect(url, onMessage, onOpen, onClose) {
     }
   };
 
-  ws.onclose = () => {
+  ws.onclose = (event) => {
+    console.log('[WS] Connection closed, code:', event.code, 'reason:', event.reason, 'wasClean:', event.wasClean);
     if (onCloseCb) onCloseCb();
     stopPing();
     scheduleReconnect();
   };
 
-  ws.onerror = () => {
-    // onclose will fire after onerror
+  ws.onerror = (event) => {
+    console.error('[WS] Connection error');
   };
 
   return ws;
@@ -80,12 +83,27 @@ export function send(msg) {
   }
 }
 
-export function createRoom(name) {
-  send({ type: 'create', name });
+export function createRoom(name, isPublic = true) {
+  send({ type: 'create', name, isPublic });
 }
 
 export function joinRoom(code, name) {
   send({ type: 'join', code, name });
+}
+
+export function rejoinRoom(code, name) {
+  send({ type: 'rejoin', code, name });
+}
+
+function fetchAsMessage(url, msgType, fallback) {
+  fetch(url)
+    .then(res => res.json())
+    .then(data => { if (onMessageCb) onMessageCb({ type: msgType, data }); })
+    .catch(() => { if (onMessageCb) onMessageCb({ type: msgType, ...fallback }); });
+}
+
+export function listRooms() {
+  fetchAsMessage('/api/rooms', 'roomList', { rooms: [] });
 }
 
 export function sendPlay(cardIdentifiers) {

@@ -27,6 +27,7 @@ function serveFile(res, filePath) {
   res.writeHead(200, {
     "Content-Type": MIME[ext] || "application/octet-stream",
     "Content-Length": stats.size,
+    "Cache-Control": "no-store, no-cache, must-revalidate",
   });
   fs.createReadStream(filePath).pipe(res);
 }
@@ -71,11 +72,16 @@ function proxyRequest(req, res) {
 function proxyWebSocket(req, socket, head) {
   const url = new URL(req.url, `ws://${PROXY_TARGET}`);
   url.pathname = stripApiPrefix(url.pathname);
-  const targetWs = new WebSocket(url, {
-    headers: { ...req.headers, host: PROXY_TARGET },
-  });
 
   wss.handleUpgrade(req, socket, head, (clientWs) => {
+    const targetWs = new WebSocket(url, {
+      headers: { ...req.headers, host: PROXY_TARGET },
+    });
+
+    targetWs.on("open", () => {
+      console.log("[ws proxy] backend connected");
+    });
+
     clientWs.on("message", (data, isBinary) => {
       if (targetWs.readyState === WebSocket.OPEN) {
         targetWs.send(isBinary ? data : data.toString());

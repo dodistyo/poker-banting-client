@@ -1,6 +1,7 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
-import { connect, disconnect, createRoom, joinRoom, sendPlay, sendPass, isConnected } from './network.js';
+import { connect, disconnect, createRoom, joinRoom, rejoinRoom, listRooms, sendPlay, sendPass, isConnected } from './network.js';
+import { saveSession, loadSession, clearSession } from './session.js';
 
 let state = null;
 let playerId = null;
@@ -9,11 +10,21 @@ let serverUrl =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.host +
   "/api/ws";
+function resolvePlayerName(pid, fallback) {
+  return state?.playerNames?.[pid] || fallback;
+}
+
 export function getSTATE() { return state; }
 export function getPlayerId() { return playerId; }
 
 export function initClient(url) {
   serverUrl = url || serverUrl;
+
+  const session = loadSession();
+  if (session.name) {
+    const nameInput = document.getElementById('lobby-name-input');
+    if (nameInput) nameInput.value = session.name;
+  }
 
   connect(serverUrl, handleMessage, onConnect, onDisconnect);
 
@@ -32,6 +43,10 @@ export function initClient(url) {
 
 function onConnect() {
   updateConnectionStatus(true);
+  const session = loadSession();
+  if (session.code && session.name) {
+    rejoinRoom(session.code, session.name);
+  }
 }
 
 function onDisconnect() {
@@ -52,6 +67,7 @@ function handleMessage(msg) {
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
+      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'You'));
       handlePhase();
       render(state);
       clearLog();
@@ -60,9 +76,23 @@ function handleMessage(msg) {
     case 'joined':
       playerId = msg.playerId;
       state = adaptState(msg.state);
+      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'));
       handlePhase();
       render(state);
       clearLog();
+      break;
+
+    case 'rejoined':
+      playerId = msg.playerId;
+      roomCode = msg.code;
+      state = adaptState(msg.state);
+      handlePhase();
+      render(state);
+      clearLog();
+      break;
+
+    case 'roomList':
+      renderRoomList(msg.rooms || []);
       break;
 
     case 'state':
@@ -259,8 +289,10 @@ export function handleCreateRoom() {
   console.log('[UI] Create Room clicked');
   const nameInput = document.getElementById('lobby-name-input');
   const name = nameInput ? nameInput.value.trim() || 'You' : 'You';
-  console.log('[UI] Creating room as:', name);
-  createRoom(name);
+  const publicToggle = document.getElementById('lobby-public-toggle');
+  const isPublic = publicToggle ? publicToggle.checked : true;
+  console.log('[UI] Creating room as:', name, 'isPublic:', isPublic);
+  createRoom(name, isPublic);
 }
 
 export function handleJoinRoom() {
@@ -273,6 +305,41 @@ export function handleJoinRoom() {
     return;
   }
   joinRoom(code, name);
+}
+
+export function handleBrowseRooms() {
+  listRooms();
+}
+
+export function handleJoinFromList(code) {
+  const nameInput = document.getElementById('lobby-name-input');
+  const name = nameInput ? nameInput.value.trim() || 'Player' : 'Player';
+  joinRoom(code, name);
+}
+
+function renderRoomList(rooms) {
+  const container = document.getElementById('lobby-room-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (rooms.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  rooms.forEach(room => {
+    const div = document.createElement('div');
+    div.className = 'room-item';
+    div.innerHTML = `
+      <div class="room-info">
+        <div class="room-name">${room.name}</div>
+        <div class="room-players">${room.players}/4 players · ${room.code}</div>
+      </div>
+      <button class="room-join-btn">Join</button>
+    `;
+    div.querySelector('.room-join-btn').onclick = () => handleJoinFromList(room.code);
+    div.querySelector('.room-info').onclick = () => handleJoinFromList(room.code);
+    container.appendChild(div);
+  });
 }
 
 export function selectCard(playerIdx, cardIdx) {
@@ -340,6 +407,7 @@ export function sortHand() {
 
 export function nextRound() {
   document.getElementById('gameover-overlay').classList.remove('show');
+  clearSession();
   disconnect();
   state = null;
   playerId = null;
