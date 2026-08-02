@@ -9,20 +9,50 @@
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; height: 100dvh; overflow: visible; }
 
 /* Lobby overlay */
-#lobby-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
-#lobby-overlay .panel { background: #16213e; border-radius: 12px; padding: 32px; text-align: center; min-width: 340px; }
-#lobby-overlay h2 { margin-bottom: 20px; color: #e94560; }
-#lobby-overlay .lobby-section { margin: 16px 0; }
-#lobby-overlay label { display: block; text-align: left; color: #aaa; font-size: 13px; margin-bottom: 4px; }
-#lobby-overlay input { padding: 8px 12px; border: 1px solid #444; border-radius: 6px; background: #0f3460; color: #fff; font-size: 14px; width: 100%; margin-bottom: 8px; }
-#lobby-overlay input:focus { outline: none; border-color: #e94560; }
-#lobby-overlay button { padding: 10px 24px; background: #e94560; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 4px; }
+#lobby-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+#lobby-overlay .panel { background: #16213e; border-radius: 16px; padding: 32px 24px; text-align: center; min-width: 384px; max-width: 440px; position: relative; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04); }
+#lobby-overlay h2 { margin-bottom: 24px; color: #e94560; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+#lobby-overlay h3 { margin: 0; color: #e94560; font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+.lobby-header { display: flex; align-items: center; justify-content: center; margin-bottom: 32px; position: relative; }
+.lobby-header .lobby-back-icon { position: absolute; left: 0; top: 50%; transform: translateY(-50%); cursor: pointer; color: #8899aa; transition: color 0.2s ease; }
+
+.lobby-header .lobby-back-icon:hover { color: #e94560; }
+#lobby-overlay .lobby-section { margin: 0 0 24px 0; }
+#lobby-overlay label { display: block; text-align: left; color: #99aabb; font-size: 12px; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.6px; text-transform: uppercase; }
+#lobby-overlay input[type="text"], #lobby-overlay input:not([type="checkbox"]) { padding: 12px 16px; border: 1px solid #2a3a5c; border-radius: 8px; background: #0d1b33; color: #fff; font-size: 15px; width: 100%; margin-bottom: 0; transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; }
+#lobby-overlay input[type="text"]:focus, #lobby-overlay input:not([type="checkbox"]):focus { outline: none; border-color: #e94560; box-shadow: 0 0 0 3px rgba(233,69,96,0.12), 0 0 16px rgba(233,69,96,0.08); background: #0f1f38; }
+#lobby-overlay input[type="text"]::placeholder, #lobby-overlay input:not([type="checkbox"])::placeholder { color: #4a5568; }
+#lobby-overlay button { padding: 10px 24px; background: #e94560; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 4px; transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease; }
 #lobby-overlay button:hover { background: #c73650; }
-#lobby-overlay .divider { color: #555; margin: 12px 0; font-size: 13px; }
-#room-code-display { font-size: 28px; font-weight: 700; color: #ffd700; letter-spacing: 4px; margin: 12px 0; font-family: monospace; }
-#lobby-player-list { text-align: left; margin: 12px 0; min-height: 40px; }
+/* Lobby screens */
+.lobby-screen { display: none; animation: lobbyFadeIn 0.25s ease; }
+.lobby-screen.active { display: block; }
+@keyframes lobbyFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Main menu */
+.lobby-menu { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 0; }
+.lobby-menu li { cursor: pointer; transition: background 0.2s ease; }
+.lobby-menu li:hover { background: rgba(255,255,255,0.05); }
+.lobby-menu a { display: block; padding: 12px 16px; color: #fff; text-decoration: none; font-size: 15px; font-weight: 500; transition: color 0.2s ease; }
+.lobby-menu li:hover a { color: #e94560; }
+
+/* Submit button */
+#lobby-overlay .lobby-submit-btn { padding: 14px 16px; background: linear-gradient(180deg, #ee5a6f 0%, #e94560 100%); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 24px 0 0; width: 100%; transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease; box-shadow: 0 4px 16px rgba(233,69,96,0.25), 0 1px 3px rgba(0,0,0,0.2); letter-spacing: 0.2px; }
+#lobby-overlay .lobby-submit-btn:hover { background: linear-gradient(180deg, #e94560 0%, #d63a54 100%); box-shadow: 0 6px 24px rgba(233,69,96,0.35), 0 2px 6px rgba(0,0,0,0.25); transform: translateY(-2px); }
+#lobby-overlay .lobby-submit-btn:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(233,69,96,0.2), 0 1px 2px rgba(0,0,0,0.2); transition: transform 0.1s ease, box-shadow 0.1s ease; }
+#lobby-overlay .lobby-submit-btn:disabled { background: #3a3a4a; cursor: not-allowed; box-shadow: none; transform: none; opacity: 0.6; }
+
+/* Field error */
+.lobby-field-error { color: #ff6b6b; font-size: 12px; font-weight: 500; text-align: left; margin-top: 8px; margin-bottom: 0; display: none; }
+.lobby-field-error:not(:empty) { display: block; }
+
+/* Checkbox */
+#lobby-overlay input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; accent-color: #e94560; flex-shrink: 0; border-radius: 4px; transition: box-shadow 0.2s ease; }
+#lobby-overlay input[type="checkbox"]:focus { box-shadow: 0 0 0 3px rgba(233,69,96,0.12); }
+#lobby-overlay label.checkbox-label { display: flex; align-items: center; gap: 12px; text-transform: none; font-size: 15px; font-weight: 400; color: #ccc; cursor: pointer; white-space: nowrap; margin-top: 8px; }
+#lobby-player-list { text-align: left; margin: 12px 0; display: none; }
 #lobby-player-list .lobby-player { padding: 4px 0; font-size: 14px; color: #ccc; }
-#lobby-error { color: #ff5252; font-size: 12px; margin-top: 8px; min-height: 16px; }
+#lobby-error { color: #ff5252; font-size: 12px; margin-top: 8px; display: none; }
 
 #lobby-room-list { text-align: left; margin: 12px 0; }
 #lobby-room-list .room-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; margin: 4px 0; background: #0f3460; border-radius: 6px; cursor: pointer; }
@@ -401,7 +431,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #error-msg { font-size: 10px; }
 
   /* Overlays */
-  #lobby-overlay .panel { padding: 20px; margin: 0 12px; min-width: auto; }
+  #lobby-overlay .panel { padding: 24px; margin: 0 12px; min-width: auto; max-width: 95vw; }
+  .lobby-menu a { padding: 12px 16px; font-size: 14px; }
+  #lobby-overlay .lobby-submit-btn { padding: 12px 16px; font-size: 14px; margin: 16px 0 0; }
   #gameover-overlay .panel { padding: 24px; margin: 0 12px; }
   #three-phase-overlay .panel { padding: 16px; margin: 0 12px; }
   .three-discard-grid { gap: 12px; max-width: 95vw; flex-direction: column; align-items: center; }
@@ -533,7 +565,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #combo-preview { font-size: 10px; }
   #error-msg { font-size: 10px; }
 
-  #lobby-overlay .panel { padding: 16px; margin: 0 12px; min-width: auto; }
+  #lobby-overlay .panel { padding: 20px; margin: 0 12px; min-width: auto; max-width: 95vw; }
+  .lobby-menu a { padding: 10px 12px; font-size: 13px; }
+  #lobby-overlay .lobby-submit-btn { padding: 12px 16px; font-size: 14px; margin: 16px 0 0; }
   #gameover-overlay .panel { padding: 20px; margin: 0 12px; }
   #three-phase-overlay .panel { padding: 12px; margin: 0 12px; }
   .three-discard-grid { gap: 8px; max-width: 95vw; flex-direction: column; align-items: center; }
@@ -619,35 +653,56 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 <!-- Lobby overlay -->
 <div id="lobby-overlay">
   <div class="panel">
-    <h2>Capsa Banting</h2>
-    <div class="lobby-section">
-      <label>Your name</label>
-      <input id="lobby-name-input" placeholder="Enter your name">
+
+    <!-- MAIN MENU -->
+    <div id="lobby-screen-main" class="lobby-screen active">
+      <h2>Capsa Banting</h2>
+      <ul class="lobby-menu">
+        <li class="primary" onclick="window.__app_showScreen('new')"><a>New Game</a></li>
+        <li onclick="window.__app_showScreen('join')"><a>Join Game</a></li>
+        <li onclick="window.__app_handleBrowseRooms()"><a>Browse Public Rooms</a></li>
+      </ul>
+      <div id="lobby-room-list"></div>
     </div>
-    <div class="lobby-section">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="lobby-public-toggle" checked /> Public Room
-      </label>
-      <button onclick="handleCreateRoom()">Create Room</button>
+
+    <!-- NEW GAME SCREEN -->
+    <div id="lobby-screen-new" class="lobby-screen">
+      <div class="lobby-header">
+        <span class="lobby-back-icon" onclick="window.__app_showScreen('main')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></span>
+        <h3>New Game</h3>
+      </div>
+      <div class="lobby-section">
+        <label>Your name</label>
+        <input id="lobby-name-input" placeholder="Enter your name">
+        <div class="lobby-field-error" id="lobby-name-error"></div>
+      </div>
+      <div class="lobby-section">
+        <label class="checkbox-label" for="lobby-public-toggle">
+          <input type="checkbox" id="lobby-public-toggle" checked /> Public Room
+        </label>
+      </div>
+      <button class="lobby-submit-btn" onclick="window.__app_handleCreateRoom()">Create</button>
     </div>
-    <div class="divider">— or —</div>
-    <div class="lobby-section">
-      <label>Room code</label>
-      <input id="lobby-code-input" placeholder="Enter 6-char code" style="text-transform: uppercase; text-align: center; font-family: monospace; font-size: 18px; letter-spacing: 3px;">
-      <button onclick="handleJoinRoom()">Join Room</button>
+
+    <!-- JOIN GAME SCREEN -->
+    <div id="lobby-screen-join" class="lobby-screen">
+      <div class="lobby-header">
+        <span class="lobby-back-icon" onclick="window.__app_showScreen('main')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></span>
+        <h3>Join Game</h3>
+      </div>
+      <div class="lobby-section">
+        <label>Your name</label>
+        <input id="lobby-join-name-input" placeholder="Enter your name">
+        <div class="lobby-field-error" id="lobby-join-name-error"></div>
+      </div>
+      <div class="lobby-section">
+        <label>Room code</label>
+        <input id="lobby-code-input" placeholder="Enter 6-char code" style="text-transform: uppercase; text-align: center; font-family: monospace; font-size: 18px; letter-spacing: 3px;">
+        <div class="lobby-field-error" id="lobby-code-error"></div>
+      </div>
+      <button class="lobby-submit-btn" onclick="window.__app_handleJoinRoom()">Join</button>
     </div>
-    <div class="divider">— or —</div>
-    <div class="lobby-section" id="lobby-rejoin-section" style="display:none;">
-      <label>Previous room</label>
-      <div id="lobby-rejoin-info" style="color:#e94560;font-family:monospace;font-size:16px;letter-spacing:2px;margin-bottom:8px;"></div>
-      <button onclick="handleRejoinRoom()">Rejoin</button>
-    </div>
-    <div class="lobby-section">
-      <button onclick="handleBrowseRooms()" style="background:#4a4a6a;">Browse Public Rooms</button>
-    </div>
-    <div id="room-code-display" style="display:none;"></div>
-    <div id="lobby-room-list"></div>
-    <div id="lobby-player-list"></div>
+<div id="lobby-player-list"></div>
     <div id="lobby-error"></div>
   </div>
 </div>
@@ -711,13 +766,14 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 </div>
 
 <script type="module">
-import { handleCreateRoom, handleJoinRoom, handleRejoinRoom, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient } from './src/app.js';
+import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient, showLobbyScreen } from './src/app.js';
 
 console.log('[INIT] Modules loaded successfully');
 
-window.handleCreateRoom = handleCreateRoom;
-window.handleJoinRoom = handleJoinRoom;
-window.handleRejoinRoom = handleRejoinRoom;
+window.__app_showScreen = showLobbyScreen;
+window.__app_handleCreateRoom = handleCreateRoom;
+window.__app_handleJoinRoom = handleJoinRoom;
+window.__app_handleBrowseRooms = handleBrowseRooms;
 window.sortHand = sortHand;
 window.playCards = playCards;
 window.passTurn = passTurn;

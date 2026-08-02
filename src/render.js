@@ -420,6 +420,8 @@ export function renderLobby(state) {
   if (!list || !state || !state.players) return;
 
   list.innerHTML = '';
+  const hasPlayers = state.players.some(p => p);
+  list.style.display = hasPlayers ? 'block' : 'none';
   state.players.forEach((p, i) => {
     if (!p) return;
     const div = document.createElement('div');

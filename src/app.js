@@ -1,12 +1,11 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
-import { connect, disconnect, createRoom, joinRoom, rejoinRoom, listRooms, sendPlay, sendPass, isConnected } from './network.js';
+import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, isConnected } from './network.js';
 import { saveSession, loadSession, clearSession } from './session.js';
 
 let state = null;
 let playerId = null;
 let roomCode = null;
-let rejoinPending = false;
 let serverUrl =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.host +
@@ -30,10 +29,11 @@ export function initClient(url) {
   serverUrl = url || serverUrl;
 
   const session = loadSession();
+  const defaultName = session.name || randomAnimalName();
   const nameInput = document.getElementById('lobby-name-input');
-  if (nameInput) {
-    nameInput.value = session.name || randomAnimalName();
-  }
+  if (nameInput) nameInput.value = defaultName;
+  const joinNameInput = document.getElementById('lobby-join-name-input');
+  if (joinNameInput) joinNameInput.value = defaultName;
 
   connect(serverUrl, handleMessage, onConnect, onDisconnect);
 
@@ -53,7 +53,6 @@ export function initClient(url) {
 function onConnect() {
   updateConnectionStatus(true);
   const session = loadSession();
-  // Show rejoin button if there's a saved session — don't auto-rejoin
   if (session.code && session.name) {
     showLobby();
   }
@@ -74,7 +73,6 @@ function updateConnectionStatus(connected) {
 function handleMessage(msg) {
   switch (msg.type) {
     case 'created':
-      rejoinPending = false;
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -85,7 +83,6 @@ function handleMessage(msg) {
       break;
 
     case 'joined':
-      rejoinPending = false;
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -96,7 +93,6 @@ function handleMessage(msg) {
       break;
 
     case 'rejoined':
-      rejoinPending = false;
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -141,10 +137,6 @@ function handleMessage(msg) {
       break;
 
     case 'error':
-      if (rejoinPending) {
-        rejoinPending = false;
-        showLobby();
-      }
       showError(msg.message);
       break;
 
@@ -249,24 +241,32 @@ function showLobby() {
   const overlay = document.getElementById('lobby-overlay');
   if (overlay) {
     overlay.style.display = 'flex';
-    if (roomCode) {
-      document.getElementById('room-code-display').textContent = roomCode;
-    }
     renderLobby(state);
   }
-  // Show rejoin section if there's a saved session
-  const session = loadSession();
-  const rejoinSection = document.getElementById('lobby-rejoin-section');
-  if (rejoinSection && session.code && session.name) {
-    rejoinSection.style.display = 'block';
-    document.getElementById('lobby-rejoin-info').textContent = session.code + ' — ' + session.name;
-  } else if (rejoinSection) {
-    rejoinSection.style.display = 'none';
-  }
-  // name-overlay removed
-  // Hide room code in header when in lobby
   const rcHeader = document.getElementById('room-code-header');
   if (rcHeader) rcHeader.style.display = "none";
+  showLobbyScreen('main');
+}
+
+export function showLobbyScreen(screen) {
+  const screens = ['main', 'new', 'join'];
+  screens.forEach(s => {
+    const el = document.getElementById('lobby-screen-' + s);
+    if (el) el.classList.toggle('active', s === screen);
+  });
+  // Clear field errors when switching screens
+  ['lobby-name-error', 'lobby-code-error', 'lobby-join-name-error'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
+  // Prefill join name if empty
+  if (screen === 'join') {
+    const joinNameInput = document.getElementById('lobby-join-name-input');
+    if (joinNameInput && !joinNameInput.value.trim()) {
+      const session = loadSession();
+      joinNameInput.value = session.name || randomAnimalName();
+    }
+  }
 }
 
 function hideLobby() {
@@ -304,7 +304,8 @@ function showError(message) {
 
   if (lobbyEl && lobbyEl.closest('#lobby-overlay') && lobbyEl.closest('#lobby-overlay').style.display !== 'none') {
     lobbyEl.textContent = message;
-    setTimeout(() => { lobbyEl.textContent = ''; }, 3000);
+    lobbyEl.style.display = 'block';
+    setTimeout(() => { lobbyEl.textContent = ''; lobbyEl.style.display = 'none'; }, 3000);
   } else if (gameEl) {
     gameEl.textContent = message;
     setTimeout(() => { gameEl.textContent = ''; }, 3000);
@@ -315,7 +316,14 @@ function showError(message) {
 
 export function handleCreateRoom() {
   const nameInput = document.getElementById('lobby-name-input');
-  const name = nameInput ? nameInput.value.trim() || 'You' : 'You';
+  const nameError = document.getElementById('lobby-name-error');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) {
+    if (nameError) nameError.textContent = 'Name is required';
+    nameInput.focus();
+    return;
+  }
+  if (nameError) nameError.textContent = '';
   const publicToggle = document.getElementById('lobby-public-toggle');
   const isPublic = publicToggle ? publicToggle.checked : true;
   createRoom(name, isPublic);
@@ -323,22 +331,27 @@ export function handleCreateRoom() {
 
 export function handleJoinRoom() {
   const codeInput = document.getElementById('lobby-code-input');
-  const nameInput = document.getElementById('lobby-name-input');
+  const codeError = document.getElementById('lobby-code-error');
+  const joinNameInput = document.getElementById('lobby-join-name-input');
+  const joinNameError = document.getElementById('lobby-join-name-error');
   const code = codeInput ? codeInput.value.trim().toUpperCase() : '';
-  const name = nameInput ? nameInput.value.trim() || 'Player' : 'Player';
+  const name = joinNameInput ? joinNameInput.value.trim() : '';
+  let hasError = false;
+  if (!name) {
+    if (joinNameError) joinNameError.textContent = 'Name is required';
+    joinNameInput.focus();
+    hasError = true;
+  } else if (joinNameError) {
+    joinNameError.textContent = '';
+  }
   if (code.length < 6) {
-    showError('Enter a 6-character room code');
+    if (codeError) codeError.textContent = 'Enter a 6-character room code';
+    if (!hasError) codeInput.focus();
     return;
+  } else if (codeError) {
+    codeError.textContent = '';
   }
-  joinRoom(code, name);
-}
-
-export function handleRejoinRoom() {
-  const session = loadSession();
-  if (session.code && session.name) {
-    rejoinPending = true;
-    rejoinRoom(session.code, session.name, session.token);
-  }
+  if (!hasError) joinRoom(code, name);
 }
 
 export function handleBrowseRooms() {
@@ -346,9 +359,9 @@ export function handleBrowseRooms() {
 }
 
 export function handleJoinFromList(code) {
-  const nameInput = document.getElementById('lobby-name-input');
-  const name = nameInput ? nameInput.value.trim() || 'Player' : 'Player';
-  joinRoom(code, name);
+  const codeInput = document.getElementById('lobby-code-input');
+  if (codeInput) codeInput.value = code;
+  showLobbyScreen('join');
 }
 
 function renderRoomList(rooms) {
@@ -360,7 +373,7 @@ function renderRoomList(rooms) {
     return;
   }
   container.style.display = 'block';
-  rooms.forEach(room => {
+  rooms.filter(r => r.players > 0).forEach(room => {
     const div = document.createElement('div');
     div.className = 'room-item';
     div.innerHTML = `

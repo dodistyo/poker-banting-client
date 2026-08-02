@@ -85,10 +85,6 @@ export function joinRoom(code, name) {
   send({ type: 'join', code, name });
 }
 
-export function rejoinRoom(code, name, token) {
-  send({ type: 'rejoin', code, name, token });
-}
-
 function fetchAsMessage(url, msgType, fallback) {
   fetch(url)
     .then(res => res.json())
