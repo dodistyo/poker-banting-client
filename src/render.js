@@ -317,8 +317,9 @@ function renderActionBar(state) {
 
   const playerId = state._playerId;
   const isMyTurn = playerId !== null && state.currentPlayer === playerId && !state.gameOver && !state.threePhase;
+  const gameStarted = state.phase && state.phase !== 'lobby';
 
-  if (state.gameOver || !isMyTurn) {
+  if (state.gameOver || !isMyTurn || !gameStarted) {
     actionBar.classList.remove('visible');
     const btnSort = document.getElementById('btn-sort');
     if (btnSort) btnSort.disabled = true;
@@ -416,20 +417,7 @@ export function updateScoreboard(state) {
 }
 
 export function renderLobby(state) {
-  const list = document.getElementById('lobby-player-list');
-  if (!list || !state || !state.players) return;
-
-  list.innerHTML = '';
-  const hasPlayers = state.players.some(p => p);
-  list.style.display = hasPlayers ? 'block' : 'none';
-  state.players.forEach((p, i) => {
-    if (!p) return;
-    const div = document.createElement('div');
-    div.className = 'lobby-player';
-    const isBot = p.isBot || !p.connected;
-    div.textContent = p.name + (isBot ? ' (Bot)' : '');
-    list.appendChild(div);
-  });
+  // No-op — party screen handles player list rendering
 }
 
 function renderLog(state) {

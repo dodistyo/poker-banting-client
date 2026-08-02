@@ -1,6 +1,6 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
-import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, isConnected } from './network.js';
+import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendLeaveRoom, sendRejoin, isConnected } from './network.js';
 import { saveSession, loadSession, clearSession } from './session.js';
 
 let state = null;
@@ -53,8 +53,8 @@ export function initClient(url) {
 function onConnect() {
   updateConnectionStatus(true);
   const session = loadSession();
-  if (session.code && session.name) {
-    showLobby();
+  if (session.code && session.name && session.token) {
+    sendRejoin(session.code, session.name, session.token);
   }
 }
 
@@ -132,6 +132,18 @@ function handleMessage(msg) {
         if (state.players[msg.playerId]) {
           state.players[msg.playerId].connected = false;
         }
+        render(state);
+      }
+      break;
+
+    case 'playerReady':
+      if (state) {
+        const players = Array.isArray(state.players) ? state.players : Object.values(state.players);
+        const idx = players.findIndex(p => p && p.id === msg.playerId);
+        if (idx !== -1 && state.ready) {
+          state.ready[idx] = msg.ready;
+        }
+        handlePhase();
         render(state);
       }
       break;
@@ -245,11 +257,16 @@ function showLobby() {
   }
   const rcHeader = document.getElementById('room-code-header');
   if (rcHeader) rcHeader.style.display = "none";
-  showLobbyScreen('main');
+  if (roomCode) {
+    renderPartyScreen();
+    showLobbyScreen('party');
+  } else {
+    showLobbyScreen('main');
+  }
 }
 
 export function showLobbyScreen(screen) {
-  const screens = ['main', 'new', 'join'];
+  const screens = ['main', 'new', 'join', 'party'];
   screens.forEach(s => {
     const el = document.getElementById('lobby-screen-' + s);
     if (el) el.classList.toggle('active', s === screen);
@@ -273,6 +290,91 @@ function hideLobby() {
   const overlay = document.getElementById('lobby-overlay');
   if (overlay) overlay.style.display = 'none';
 }
+
+function renderPartyScreen() {
+  if (!state || !roomCode) return;
+
+  document.getElementById('party-code').textContent = roomCode;
+
+  const table = document.getElementById('party-player-list');
+  const tbody = table.querySelector('tbody');
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+  const allPlayers = Array.isArray(state.players) ? state.players : Object.values(state.players);
+  const seen = new Set();
+  const players = allPlayers.filter(p => { if (!p) return false; if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+  players.forEach((p, i) => {
+    if (!p) return;
+    const isBot = p.isBot || !p.connected;
+    const ready = state.ready && state.ready[i];
+    const isMe = p.id === playerId;
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'border-bottom:1px solid #1a2a4a;' + (isMe ? 'background:#1a2a4a;' : '');
+    const tdName = document.createElement('td');
+    tdName.style.padding = '10px 0';
+    tdName.textContent = p.name + (p.isCreator ? ' 👑' : '') + (isMe ? ' (You)' : isBot ? ' (Bot)' : '');
+    const tdStatus = document.createElement('td');
+    tdStatus.style.cssText = 'padding:10px 0;text-align:center;';
+    const chip = document.createElement('span');
+    chip.style.cssText = ready
+      ? 'display:inline-block;padding:4px 12px;border-radius:12px;background:#2d6a4f;color:#fff;font-size:12px;font-weight:600;'
+      : 'display:inline-block;padding:4px 12px;border-radius:12px;background:#3a3a3a;color:#888;font-size:12px;';
+    chip.textContent = ready ? 'Ready' : 'Not Ready';
+    tdStatus.appendChild(chip);
+    tr.appendChild(tdName);
+    tr.appendChild(tdStatus);
+    tbody.appendChild(tr);
+  });
+
+  const myIdx = players.findIndex(p => p && p.id === playerId);
+  const isCreator = myIdx !== -1 && players[myIdx].isCreator;
+  const myReady = state.ready && state.ready[myIdx];
+
+  const readyBtn = document.getElementById('party-ready-btn');
+  if (readyBtn) {
+    readyBtn.style.display = isCreator ? 'none' : 'block';
+    readyBtn.textContent = myReady ? 'Cancel' : 'Ready';
+    readyBtn.style.background = myReady ? '#555' : '#2d6a4f';
+    readyBtn.style.color = '#fff';
+    readyBtn.style.boxShadow = 'none';
+  }
+
+  const startBtn = document.getElementById('party-start-btn');
+  if (startBtn) {
+    startBtn.style.display = isCreator ? 'block' : 'none';
+  }
+}
+
+window.__app_copyCode = () => {
+  if (!roomCode) return;
+  navigator.clipboard.writeText(roomCode).then(() => {
+    const btn = document.querySelector('#party-code-row button');
+    if (btn) { const old = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = old, 1500); }
+  }).catch(() => {});
+};
+
+window.__app_startGame = () => {
+  sendStartGame();
+};
+
+window.__app_toggleReady = () => {
+  if (!state) return;
+  const players = Array.isArray(state.players) ? state.players : Object.values(state.players);
+  const myIdx = players.findIndex(p => p && p.id === playerId);
+  const myReady = state.ready && state.ready[myIdx];
+  sendReady(!myReady);
+};
+
+window.__app_leaveRoom = () => {
+  sendLeaveRoom();
+  roomCode = null;
+  playerId = null;
+  state = null;
+  clearSession();
+  showLobbyScreen('main');
+};
+
+window.__app_handleCreateRoom = handleCreateRoom;
+window.__app_handleJoinRoom = handleJoinRoom;
 
 function showGameOver() {
   const overlay = document.getElementById('gameover-overlay');
@@ -351,7 +453,10 @@ export function handleJoinRoom() {
   } else if (codeError) {
     codeError.textContent = '';
   }
-  if (!hasError) joinRoom(code, name);
+  if (!hasError) {
+    roomCode = code;
+    joinRoom(code, name);
+  }
 }
 
 export function handleBrowseRooms() {

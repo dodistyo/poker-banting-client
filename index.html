@@ -153,8 +153,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .pass-tag { font-size: 11px; color: #ff8a80; background: rgba(255,0,0,0.1); padding: 1px 8px; border-radius: 8px; }
 
 /* Action bar */
-#action-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; align-items: center; z-index: 100; background: rgba(0,0,0,0.6); padding: 6px 16px; border-radius: 10px; max-width: calc(100% - 16px); }
+#action-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: none; flex-direction: column; gap: 6px; align-items: center; z-index: 100; background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 10px; max-width: calc(100% - 16px); }
 #action-bar.visible { display: flex; }
+#action-bar-messages { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 18px; }
+#action-bar-buttons { display: flex; gap: 10px; }
 #action-bar button { padding: 8px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 #btn-sort { background: #2196f3; color: #fff; }
 #btn-sort:disabled { background: #555; color: #888; cursor: not-allowed; }
@@ -407,18 +409,17 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     left: 50%;
     right: auto;
     transform: translateX(-50%);
-    padding: 4px 6px;
-    gap: 3px;
-    flex-wrap: wrap;
-    justify-content: stretch;
+    padding: 6px 8px;
+    gap: 6px;
     width: calc(100% - 8px);
     max-width: calc(100vw - 8px);
     z-index: 20;
   }
-  #action-bar #combo-preview, #action-bar #error-msg {
+  #action-bar-buttons {
+    flex-wrap: wrap;
+    justify-content: stretch;
+    gap: 6px;
     width: 100%;
-    text-align: center;
-    order: -1;
   }
   #action-bar button {
     padding: 6px 10px;
@@ -545,16 +546,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
   #action-bar {
     bottom: calc(84px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%);
-    padding: 4px 8px; gap: 4px;
-    flex-wrap: wrap; justify-content: stretch;
+    padding: 6px 8px; gap: 6px;
     width: calc(100% - 8px);
     max-width: calc(100vw - 8px);
     z-index: 20;
   }
-  #action-bar #combo-preview, #action-bar #error-msg {
-    width: 100%;
-    text-align: center;
-    order: -1;
+  #action-bar-buttons {
+    flex-wrap: wrap; justify-content: stretch; gap: 6px; width: 100%;
   }
   #action-bar button {
     padding: 8px 14px; font-size: 13px;
@@ -601,8 +599,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-left .card.face-down::after,
   .hand-right .card.face-down::after { font-size: 10px; }
   .hand-right .card.face-down::after { transform: rotate(180deg); }
-  #action-bar { padding: 4px 6px; gap: 4px; bottom: calc(56px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%); z-index: 20; flex-wrap: wrap; justify-content: stretch; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
-  #action-bar #combo-preview, #action-bar #error-msg { width: 100%; text-align: center; order: -1; }
+  #action-bar { padding: 4px 6px; gap: 4px; bottom: calc(56px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
+  #action-bar-buttons { flex-wrap: wrap; justify-content: stretch; gap: 4px; width: 100%; }
   #action-bar button { padding: 6px 10px; font-size: 11px; min-height: 32px; min-width: 44px; flex: 1 1 auto; }
   #center-cards { min-height: 36px; }
   #center-info { font-size: 9px; }
@@ -639,8 +637,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #center-cards { gap: 2px; min-width: 80px; min-height: 44px; }
   #center-info { font-size: 10px; }
   .pass-tag { font-size: 9px; padding: 1px 6px; }
-  #action-bar { padding: 4px 6px; gap: 4px; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(46px + env(safe-area-inset-bottom, 0px)); z-index: 20; flex-wrap: wrap; justify-content: stretch; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
-  #action-bar #combo-preview, #action-bar #error-msg { width: 100%; text-align: center; order: -1; }
+  #action-bar { padding: 4px 6px; gap: 4px; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(46px + env(safe-area-inset-bottom, 0px)); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
+  #action-bar-buttons { flex-wrap: wrap; justify-content: stretch; gap: 4px; width: 100%; }
   #action-bar button { padding: 6px 10px; font-size: 12px; min-height: 40px; flex: 1 1 auto; }
   #sidebar { max-height: 50px; }
   #scoreboard { min-width: 0; gap: 2px; padding: 2px 6px; }
@@ -702,7 +700,35 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       </div>
       <button class="lobby-submit-btn" onclick="window.__app_handleJoinRoom()">Join</button>
     </div>
-<div id="lobby-player-list"></div>
+
+    <!-- PARTY SCREEN (room lobby) -->
+    <div id="lobby-screen-party" class="lobby-screen">
+      <div class="lobby-header">
+        <span class="lobby-back-icon" onclick="window.__app_leaveRoom()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></span>
+        <h3>Waiting Room</h3>
+      </div>
+      <div class="lobby-section">
+        <label>Room Code</label>
+        <div id="party-code-row" style="display:flex;align-items:center;gap:8px;justify-content:flex-start;">
+          <span id="party-code" style="font-family:monospace;font-size:28px;letter-spacing:6px;color:#e94560;font-weight:700;"></span>
+          <button onclick="window.__app_copyCode()" style="padding:6px 12px;font-size:12px;margin:0;background:#2a3a5c;border:1px solid #3a4a6c;border-radius:6px;color:#ccc;cursor:pointer;">Copy</button>
+        </div>
+      </div>
+      <div class="lobby-section">
+        <label>Players</label>
+        <table id="party-player-list" style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead><tr style="border-bottom:1px solid #3a4a6c;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">
+            <th style="padding:8px 0;">Username</th>
+            <th style="padding:8px 0;text-align:center;">Status</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button id="party-ready-btn" class="lobby-submit-btn" onclick="window.__app_toggleReady()" style="display:none;box-shadow:none;">Ready</button>
+      <button id="party-start-btn" class="lobby-submit-btn" onclick="window.__app_startGame()" style="display:none;">Start Game</button>
+      <button id="party-leave-btn" class="lobby-submit-btn" onclick="window.__app_leaveRoom()" style="background:#2a3a5c;margin-top:8px;box-shadow:none;">Leave</button>
+    </div>
+
     <div id="lobby-error"></div>
   </div>
 </div>
@@ -749,11 +775,15 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     </div>
 
     <div id="action-bar">
-      <span id="combo-preview"></span>
-      <span id="error-msg"></span>
-      <button id="btn-sort" onclick="sortHand()">Sort</button>
-      <button id="btn-play" onclick="playCards()">Play</button>
-      <button id="btn-pass" onclick="passTurn()">Pass</button>
+      <div id="action-bar-messages">
+        <span id="combo-preview"></span>
+        <span id="error-msg"></span>
+      </div>
+      <div id="action-bar-buttons">
+        <button id="btn-sort" onclick="sortHand()">Sort</button>
+        <button id="btn-play" onclick="playCards()">Play</button>
+        <button id="btn-pass" onclick="passTurn()">Pass</button>
+      </div>
     </div>
   </div>
 

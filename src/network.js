@@ -82,6 +82,19 @@ export function createRoom(name, isPublic = true) {
 }
 
 export function joinRoom(code, name) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
+    const origOnOpen = onOpenCb;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    const oldWs = ws;
+    ws = null;
+    if (oldWs) { oldWs.onclose = null; oldWs.onmessage = null; oldWs.onerror = null; }
+    connect(url, onMessageCb, () => {
+      if (origOnOpen) origOnOpen();
+      send({ type: 'join', code, name });
+    }, onCloseCb);
+    return;
+  }
   send({ type: 'join', code, name });
 }
 
@@ -102,6 +115,26 @@ export function sendPlay(cardIdentifiers) {
 
 export function sendPass() {
   send({ type: 'pass' });
+}
+
+export function sendReady(isReady) {
+  send({ type: 'ready', ready: isReady });
+}
+
+export function sendStartGame() {
+  send({ type: 'startGame' });
+}
+
+export function sendLeaveRoom() {
+  send({ type: 'leaveRoom' });
+  connectUrl = null;
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  stopPing();
+  reconnectAttempts = 0;
+}
+
+export function sendRejoin(code, name, token) {
+  send({ type: 'rejoin', code, name, token });
 }
 
 export function isConnected() {
