@@ -622,7 +622,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     <h2>Capsa Banting</h2>
     <div class="lobby-section">
       <label>Your name</label>
-      <input id="lobby-name-input" value="You" placeholder="Enter your name">
+      <input id="lobby-name-input" placeholder="Enter your name">
     </div>
     <div class="lobby-section">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -637,6 +637,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <button onclick="handleJoinRoom()">Join Room</button>
     </div>
     <div class="divider">— or —</div>
+    <div class="lobby-section" id="lobby-rejoin-section" style="display:none;">
+      <label>Previous room</label>
+      <div id="lobby-rejoin-info" style="color:#e94560;font-family:monospace;font-size:16px;letter-spacing:2px;margin-bottom:8px;"></div>
+      <button onclick="handleRejoinRoom()">Rejoin</button>
+    </div>
     <div class="lobby-section">
       <button onclick="handleBrowseRooms()" style="background:#4a4a6a;">Browse Public Rooms</button>
     </div>
@@ -706,12 +711,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 </div>
 
 <script type="module">
-import { handleCreateRoom, handleJoinRoom, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient } from './src/app.js';
+import { handleCreateRoom, handleJoinRoom, handleRejoinRoom, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient } from './src/app.js';
 
 console.log('[INIT] Modules loaded successfully');
 
 window.handleCreateRoom = handleCreateRoom;
 window.handleJoinRoom = handleJoinRoom;
+window.handleRejoinRoom = handleRejoinRoom;
 window.sortHand = sortHand;
 window.playCards = playCards;
 window.passTurn = passTurn;

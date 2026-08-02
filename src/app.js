@@ -6,10 +6,19 @@ import { saveSession, loadSession, clearSession } from './session.js';
 let state = null;
 let playerId = null;
 let roomCode = null;
+let rejoinPending = false;
 let serverUrl =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.host +
   "/api/ws";
+const ANIMALS = ['Fox', 'Wolf', 'Bear', 'Eagle', 'Shark', 'Tiger', 'Lion', 'Hawk', 'Panda', 'Otter', 'Raven', 'Falcon', 'Cobra', 'Panther', 'Hare', 'Badger', 'Jaguar', 'Osprey', 'Coyote', 'Stag', 'Mantis', 'Viper'];
+
+function randomAnimalName() {
+  const animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+  const number = Math.floor(Math.random() * 89) + 10;
+  return animal + number;
+}
+
 function resolvePlayerName(pid, fallback) {
   return state?.playerNames?.[pid] || fallback;
 }
@@ -21,9 +30,9 @@ export function initClient(url) {
   serverUrl = url || serverUrl;
 
   const session = loadSession();
-  if (session.name) {
-    const nameInput = document.getElementById('lobby-name-input');
-    if (nameInput) nameInput.value = session.name;
+  const nameInput = document.getElementById('lobby-name-input');
+  if (nameInput) {
+    nameInput.value = session.name || randomAnimalName();
   }
 
   connect(serverUrl, handleMessage, onConnect, onDisconnect);
@@ -44,8 +53,9 @@ export function initClient(url) {
 function onConnect() {
   updateConnectionStatus(true);
   const session = loadSession();
+  // Show rejoin button if there's a saved session — don't auto-rejoin
   if (session.code && session.name) {
-    rejoinRoom(session.code, session.name);
+    showLobby();
   }
 }
 
@@ -64,28 +74,33 @@ function updateConnectionStatus(connected) {
 function handleMessage(msg) {
   switch (msg.type) {
     case 'created':
+      rejoinPending = false;
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
-      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'You'));
+      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'You'), msg.token);
       handlePhase();
       render(state);
       clearLog();
       break;
 
     case 'joined':
+      rejoinPending = false;
       playerId = msg.playerId;
+      roomCode = msg.code;
       state = adaptState(msg.state);
-      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'));
+      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token);
       handlePhase();
       render(state);
       clearLog();
       break;
 
     case 'rejoined':
+      rejoinPending = false;
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
+      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token);
       handlePhase();
       render(state);
       clearLog();
@@ -126,6 +141,10 @@ function handleMessage(msg) {
       break;
 
     case 'error':
+      if (rejoinPending) {
+        rejoinPending = false;
+        showLobby();
+      }
       showError(msg.message);
       break;
 
@@ -235,6 +254,15 @@ function showLobby() {
     }
     renderLobby(state);
   }
+  // Show rejoin section if there's a saved session
+  const session = loadSession();
+  const rejoinSection = document.getElementById('lobby-rejoin-section');
+  if (rejoinSection && session.code && session.name) {
+    rejoinSection.style.display = 'block';
+    document.getElementById('lobby-rejoin-info').textContent = session.code + ' — ' + session.name;
+  } else if (rejoinSection) {
+    rejoinSection.style.display = 'none';
+  }
   // name-overlay removed
   // Hide room code in header when in lobby
   const rcHeader = document.getElementById('room-code-header');
@@ -286,12 +314,10 @@ function showError(message) {
 // --- Player actions ---
 
 export function handleCreateRoom() {
-  console.log('[UI] Create Room clicked');
   const nameInput = document.getElementById('lobby-name-input');
   const name = nameInput ? nameInput.value.trim() || 'You' : 'You';
   const publicToggle = document.getElementById('lobby-public-toggle');
   const isPublic = publicToggle ? publicToggle.checked : true;
-  console.log('[UI] Creating room as:', name, 'isPublic:', isPublic);
   createRoom(name, isPublic);
 }
 
@@ -305,6 +331,14 @@ export function handleJoinRoom() {
     return;
   }
   joinRoom(code, name);
+}
+
+export function handleRejoinRoom() {
+  const session = loadSession();
+  if (session.code && session.name) {
+    rejoinPending = true;
+    rejoinRoom(session.code, session.name, session.token);
+  }
 }
 
 export function handleBrowseRooms() {

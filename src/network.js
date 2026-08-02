@@ -16,7 +16,6 @@ export function connect(url, onMessage, onOpen, onClose) {
   onMessageCb = onMessage;
   onOpenCb = onOpen;
   onCloseCb = onClose;
-  console.log('[WS] Connecting to:', url);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.close();
@@ -26,7 +25,6 @@ export function connect(url, onMessage, onOpen, onClose) {
 
   ws.onopen = () => {
     reconnectAttempts = 0;
-    console.log('[WS] Connection opened, readyState:', ws.readyState);
     if (onOpenCb) onOpenCb();
     startPing();
   };
@@ -46,7 +44,6 @@ export function connect(url, onMessage, onOpen, onClose) {
   };
 
   ws.onclose = (event) => {
-    console.log('[WS] Connection closed, code:', event.code, 'reason:', event.reason, 'wasClean:', event.wasClean);
     if (onCloseCb) onCloseCb();
     stopPing();
     scheduleReconnect();
@@ -77,9 +74,6 @@ export function disconnect() {
 export function send(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
-    console.log('[WS] Sent:', msg.type);
-  } else {
-    console.error('[WS] Cannot send — not connected. readyState:', ws ? ws.readyState : 'null');
   }
 }
 
@@ -91,8 +85,8 @@ export function joinRoom(code, name) {
   send({ type: 'join', code, name });
 }
 
-export function rejoinRoom(code, name) {
-  send({ type: 'rejoin', code, name });
+export function rejoinRoom(code, name, token) {
+  send({ type: 'rejoin', code, name, token });
 }
 
 function fetchAsMessage(url, msgType, fallback) {
