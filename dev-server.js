@@ -78,13 +78,24 @@ function proxyWebSocket(req, socket, head) {
       headers: { ...req.headers, host: PROXY_TARGET },
     });
 
+    // Buffer client messages until the backend WS handshake completes.
+    // Without this, a message arriving before targetWs is OPEN is silently
+    // dropped (e.g. the browser's instant `rejoin` after a reload).
+    const pending = [];
+
     targetWs.on("open", () => {
       console.log("[ws proxy] backend connected");
+      while (pending.length) {
+        const { data, isBinary } = pending.shift();
+        targetWs.send(isBinary ? data : data.toString());
+      }
     });
 
     clientWs.on("message", (data, isBinary) => {
       if (targetWs.readyState === WebSocket.OPEN) {
         targetWs.send(isBinary ? data : data.toString());
+      } else if (targetWs.readyState === WebSocket.CONNECTING) {
+        pending.push({ data, isBinary });
       }
     });
 

@@ -59,7 +59,41 @@ function onConnect() {
   updateConnectionStatus(true);
   const session = loadSession();
   if (session.code && session.name && session.token) {
+    rejoinAttempts = 1;
+    rejoinPending = true;
     sendRejoin(session.code, session.name, session.token);
+  }
+}
+
+// A reload tears the old socket down and opens a new one almost instantly, so
+// the first rejoin can reach the server BEFORE the old connection's
+// disconnect registers the seat as "disconnected" -> "Rejoin failed". A short
+// bounded retry rides out that race without masking a genuine failure
+// (expired seat / closed room).
+const REJOIN_MAX_ATTEMPTS = 6;
+const REJOIN_RETRY_MS = 800;
+let rejoinAttempts = 0;
+let rejoinPending = false;
+let rejoinTimer = null;
+
+function retryRejoin() {
+  const session = loadSession();
+  if (!session || !session.code || !session.name || !session.token) return;
+  if (rejoinAttempts >= REJOIN_MAX_ATTEMPTS) return;
+  if (rejoinTimer) clearTimeout(rejoinTimer);
+  rejoinTimer = setTimeout(() => {
+    rejoinTimer = null;
+    rejoinAttempts++;
+    sendRejoin(session.code, session.name, session.token);
+  }, REJOIN_RETRY_MS);
+}
+
+function resetRejoin() {
+  rejoinAttempts = 0;
+  rejoinPending = false;
+  if (rejoinTimer) {
+    clearTimeout(rejoinTimer);
+    rejoinTimer = null;
   }
 }
 
@@ -78,6 +112,7 @@ function updateConnectionStatus(connected) {
 function handleMessage(msg) {
   switch (msg.type) {
     case 'created':
+      resetRejoin();
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -88,6 +123,7 @@ function handleMessage(msg) {
       break;
 
     case 'joined':
+      resetRejoin();
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -98,6 +134,7 @@ function handleMessage(msg) {
       break;
 
     case 'rejoined':
+      resetRejoin();
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -154,7 +191,19 @@ function handleMessage(msg) {
       break;
 
     case 'error':
-      showError(msg.message);
+      if (rejoinPending) {
+        // Reload race: the old socket's disconnect hadn't landed when we sent
+        // the first rejoin. Retry silently until the seat is registered. Once
+        // the attempts run out, surface the error (seat expired / room gone).
+        if (rejoinAttempts >= REJOIN_MAX_ATTEMPTS) {
+          resetRejoin();
+          showError(msg.message);
+        } else {
+          retryRejoin();
+        }
+      } else {
+        showError(msg.message);
+      }
       break;
 
     case 'pong':
@@ -371,6 +420,7 @@ window.__app_toggleReady = () => {
 
 window.__app_leaveRoom = () => {
   sendLeaveRoom();
+  resetRejoin();
   roomCode = null;
   playerId = null;
   state = null;
