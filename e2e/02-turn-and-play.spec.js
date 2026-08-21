@@ -5,7 +5,7 @@
 //  - playing a card via the button (server echo simulated by re-injecting)
 import { test, expect } from '@playwright/test';
 import {
-  makeServerState, makeHand, injectCreated, injectState, waitForPhase, humanCardCount,
+  makeServerState, makeHand, injectCreated, injectState, waitForPhase, humanCardCount, watch,
 } from './helpers.js';
 
 // Seat DOM ids map to player ids when the human is player 0 (created as id 0):
@@ -16,12 +16,14 @@ test('turn badge and action bar follow currentPlayer', async ({ page }) => {
   // Bot's turn (player 1 = right seat): action bar hidden, right seat THINKING
   await injectCreated(page, makeServerState({ currentPlayer: 1 }));
   await waitForPhase(page, 'playing');
+  await watch(page); // let the viewer see the bot's turn
   await expect(page.locator('#action-bar')).not.toHaveClass(/visible/);
   await expect(page.locator('#player-1 .turn-badge')).toHaveText('THINKING...');
   await expect(page.locator('#btn-sort')).toBeDisabled();
 
   // Human's turn (player 0 = bottom seat): action bar visible, YOUR TURN
   await injectState(page, makeServerState({ currentPlayer: 0 }));
+  await watch(page); // let the viewer see the turn flip to the human
   await expect(page.locator('#action-bar')).toHaveClass(/visible/);
   await expect(page.locator('#player-0 .turn-badge')).toHaveText('YOUR TURN');
   await expect(page.locator('#btn-sort')).toBeEnabled();
@@ -43,6 +45,7 @@ test('card selection gates the Play button on combo validity', async ({ page }) 
     hands: [humanHand, bot2, bot3, bot4],
   }));
   await waitForPhase(page, 'playing');
+  await watch(page); // let the viewer see the full 13-card hand first
 
   // Nothing selected -> Play disabled
   const playBtn = page.locator('#btn-play');
@@ -52,6 +55,7 @@ test('card selection gates the Play button on combo validity', async ({ page }) 
   await page.locator('.hand-bottom .card').first().click();
   await expect(page.locator('#combo-preview')).not.toHaveText('');
   await expect(playBtn).toBeEnabled();
+  await watch(page); // let the viewer see the selected card + combo preview
 
   // Click Play: playCards() sends over the (closed) socket; simulate the
   // server's echo by injecting a state where the human played one card and

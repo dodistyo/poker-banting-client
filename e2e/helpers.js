@@ -53,7 +53,19 @@ export function makeServerState({
   };
 }
 
+// Opt-in slow mode: E2E_SLOW=1 (see `make e2e-slow`). Pauses are skipped on
+// normal runs so they stay fast.
+const SLOW = process.env.E2E_SLOW === '1';
+
 /** Push a synthetic `state` message through the app's real dispatcher. */
+// Pause at a key moment so a human watching the headed run can actually see
+// the state. Injected states render instantly, and slowMo does not cover
+// evaluate(), so these explicit pauses are what makes a slow run watchable.
+// No-op unless E2E_SLOW=1.
+export async function watch(page, ms = 1500) {
+  if (SLOW) await page.waitForTimeout(ms);
+}
+
 export async function injectState(page, serverState) {
   await page.evaluate((s) => window.__app_injectMessage({ type: 'state', state: s }), serverState);
 }

@@ -6,7 +6,7 @@
 // it automatically, so after start the client lands in the `playing`
 // phase and the human hand has 9..13 cards with no "3" rank.
 import { test, expect } from '@playwright/test';
-import { createRoomViaUI, startGameViaUI, humanCardCount } from './helpers.js';
+import { createRoomViaUI, startGameViaUI, humanCardCount, watch } from './helpers.js';
 
 test('lobby to game start over real server', async ({ page }) => {
   await createRoomViaUI(page, 'Dodi');
@@ -30,6 +30,7 @@ test('lobby to game start over real server', async ({ page }) => {
   // Cards are dealt: human hand is non-empty, between 9 and 13 cards,
   // and contains no "3" rank (the three-discard removed them).
   await expect.poll(() => humanCardCount(page), { timeout: 10_000 }).toBeGreaterThan(0);
+  await watch(page, 2500); // let the viewer watch the deal land on the table
   const handInfo = await page.evaluate(() => {
     const s = window.__app_getState();
     const ranks = s.hands[0].map(c => c.rank);

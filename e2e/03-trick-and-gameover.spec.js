@@ -5,7 +5,7 @@
 // finishedOrder[3] (the last to finish). If that's the human -> "You Lost!",
 // otherwise "<loser name> Lost!".
 import { test, expect } from '@playwright/test';
-import { makeServerState, injectCreated, injectState, waitForPhase } from './helpers.js';
+import { makeServerState, injectCreated, injectState, waitForPhase, watch } from './helpers.js';
 
 const card = (rank, suit) => ({ rank, suit });
 
@@ -22,6 +22,7 @@ test('trick progression: play, pass markers, new trick', async ({ page }) => {
   };
   await injectCreated(page, makeServerState({ currentPlayer: 1, trick: humanLead }));
   await waitForPhase(page, 'playing');
+  await watch(page); // let the viewer see the human's opening pair
 
   await expect(page.locator('#center-cards .card')).toHaveCount(2);
   await expect(page.locator('#center-info')).toHaveText('Pair by Dodi');
@@ -33,6 +34,7 @@ test('trick progression: play, pass markers, new trick', async ({ page }) => {
   }));
   await expect(page.locator('#pass-markers .pass-tag')).toHaveCount(1);
   await expect(page.locator('#pass-markers .pass-tag')).toHaveText('Bot 2 Pass');
+  await watch(page); // let the viewer see the pass marker
 
   // Bot 2 beats the pair
   const botBeat = {
@@ -50,6 +52,7 @@ test('trick progression: play, pass markers, new trick', async ({ page }) => {
   await expect(page.locator('#center-info')).toHaveText('Pair by Bot 3');
   // It's the human's turn again: action bar back
   await expect(page.locator('#action-bar')).toHaveClass(/visible/);
+  await watch(page); // let the viewer see the winning pair before the trick ends
 
   // New trick: center cleared, new leader text
   await injectState(page, makeServerState({
@@ -59,6 +62,7 @@ test('trick progression: play, pass markers, new trick', async ({ page }) => {
   await expect(page.locator('#center-cards .card')).toHaveCount(0);
   await expect(page.locator('#pass-markers .pass-tag')).toHaveCount(0);
   await expect(page.locator('#center-info')).toHaveText('New trick — Bot 3 plays first');
+  await watch(page); // let the viewer see the fresh trick
 });
 
 test('game over: bot loses, human ranked first', async ({ page }) => {
@@ -77,6 +81,7 @@ test('game over: bot loses, human ranked first', async ({ page }) => {
   await expect(page.locator('#gameover-overlay.show')).toBeVisible();
   // Loser is a bot -> its name, not "You Lost!"
   await expect(page.locator('#winner-text')).toHaveText('Bot 4 Lost!');
+  await watch(page); // let the viewer read the result + final table
 
   const rows = page.locator('#final-scores > div');
   await expect(rows).toHaveCount(4);
@@ -97,6 +102,7 @@ test('game over: human is the loser', async ({ page }) => {
 
   await expect(page.locator('#gameover-overlay.show')).toBeVisible();
   await expect(page.locator('#winner-text')).toHaveText('You Lost!');
+  await watch(page); // let the viewer read the result
 
   const rows = page.locator('#final-scores > div');
   await expect(rows.nth(0)).toHaveText('1st Bot 2 (9 pts)');

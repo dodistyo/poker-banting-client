@@ -1,4 +1,4 @@
-.PHONY: test e2e serve lint clean install help
+.PHONY: test e2e e2e-slow serve lint clean install help
 
 help:
 	@echo "Available targets:"
@@ -15,6 +15,9 @@ test:
 
 e2e:
 	npx playwright test
+
+e2e-slow:
+	E2E_SLOW=1 npx playwright test
 
 serve:
 	node dev-server.js
