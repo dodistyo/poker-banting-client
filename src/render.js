@@ -164,6 +164,14 @@ export function render(state) {
   updateScoreboard(state);
   renderLog(state);
 
+  // Test hook: expose current turn on the table area so E2E tests can poll
+  // it without module scope access.
+  const tableArea = document.getElementById('table-area');
+  if (tableArea) {
+    tableArea.dataset.currentPlayer = String(currentPlayer ?? '');
+    tableArea.dataset.phase = String(state.phase ?? '');
+  }
+
   // Position players relative to human player (always bottom)
   // offset from self: 0=bottom, 1=right, 2=top, 3=left
   const posToPlayer = [0, 1, 2, 3].map(offset => (playerId + offset) % 4);

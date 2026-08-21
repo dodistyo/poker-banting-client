@@ -7,6 +7,7 @@
     "test": "node test/*.test.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "jsdom": "^29.1.1",
     "live-server": "^1.2.2"
   },

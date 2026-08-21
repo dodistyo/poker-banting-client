@@ -796,7 +796,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 </div>
 
 <script type="module">
-import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient, showLobbyScreen } from './src/app.js';
+import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
 
 console.log('[INIT] Modules loaded successfully');
 
@@ -809,6 +809,11 @@ window.playCards = playCards;
 window.passTurn = passTurn;
 window.toggleSidebar = toggleSidebar;
 window.nextRound = nextRound;
+
+// Test hooks for Playwright E2E (see e2e/ directory)
+window.__app_getState = getSTATE;
+window.__app_getPlayerId = getPlayerId;
+window.__app_injectMessage = injectServerMessage;
 
 console.log('[INIT] Functions attached to window');
 

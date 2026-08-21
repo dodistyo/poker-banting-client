@@ -25,6 +25,11 @@ function resolvePlayerName(pid, fallback) {
 export function getSTATE() { return state; }
 export function getPlayerId() { return playerId; }
 
+// Test hook: feed a synthetic server message into the same dispatcher the
+// WebSocket path uses. Lets E2E tests drive game state deterministically
+// without waiting for real bot turns.
+export function injectServerMessage(msg) { handleMessage(msg); }
+
 export function initClient(url) {
   serverUrl = url || serverUrl;
 
