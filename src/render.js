@@ -208,7 +208,7 @@ export function render(state) {
     }
     const expectedLabel =
       '<div class="player-label">' +
-        playerNames[i] +
+        '<span class="player-name">' + playerNames[i] + '</span>' +
         ' <span class="card-count">(' + hand.length + ' cards)</span>' +
         label +
       '</div>';
@@ -463,7 +463,7 @@ function performHandSizing() {
   if (!tableArea) return;
 
   const isMobilePortrait = window.matchMedia('(max-width: 768px) and (orientation: portrait)').matches;
-  const isMobileLandscape = window.matchMedia('(max-height: 768px) and (orientation: landscape) and (min-width: 480px)').matches;
+  const isMobileLandscape = window.matchMedia('(max-height: 768px) and (orientation: landscape) and (min-width: 480px) and (max-width: 820px)').matches;
   const isShortLandscape = window.matchMedia('(max-height: 400px) and (orientation: landscape)').matches;
   const isMobile = isMobilePortrait || isMobileLandscape || isShortLandscape;
 

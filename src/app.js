@@ -436,18 +436,22 @@ function showGameOver() {
   if (!state) return;
 
   const ranking = state.finishedOrder.slice(0, 4);
-  const loser = ranking[3] ?? null;
+  const loser = ranking.length >= 4 ? ranking[3] : null;
+  // Guard against a missing name/score so the heading never reads "undefined"
+  const nameOf = (pid) =>
+    pid != null && state.playerNames[pid] ? state.playerNames[pid] : (pid != null ? 'Player ' + (pid + 1) : 'Unknown');
   const isHumanLoser = loser !== null && state.isHuman[loser];
 
   document.getElementById('winner-text').textContent =
-    isHumanLoser ? 'You Lost!' : state.playerNames[loser] + ' Lost!';
+    loser === null ? 'Game Over' : (isHumanLoser ? 'You Lost!' : nameOf(loser) + ' Lost!');
 
   const fs = document.getElementById('final-scores');
   fs.innerHTML = '';
   const medals = ['1st', '2nd', '3rd', 'Last'];
   ranking.forEach((p, idx) => {
     const div = document.createElement('div');
-    div.textContent = medals[idx] + ' ' + state.playerNames[p] + ' (' + state.scores[p] + ' pts)';
+    div.className = 'final-row rank-' + (idx + 1);
+    div.textContent = medals[idx] + ' ' + nameOf(p) + ' (' + (state.scores[p] ?? 0) + ' pts)';
     fs.appendChild(div);
   });
 
@@ -658,6 +662,8 @@ function updatePlayButton() {
 
   if (selected.length === 0) {
     btnPlay.disabled = true;
+    // Explain why Play is greyed out instead of leaving a dead button.
+    if (previewEl) previewEl.textContent = 'Pick 1 or 2 cards to play';
     return;
   }
 
