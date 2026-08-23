@@ -240,6 +240,7 @@ function adaptState(serverState) {
       rankIndex: rankIndex(c.rank),
       suitOrder: suitOrder(c.suit), selected: false }))
     );
+    adapted.threePhaseCounts = serverState.threeDiscard.playerCounts;
     adapted.threePhaseDiscarded = serverState.threeDiscard.discarded;
   }
 

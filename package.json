@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Capsa Banting card game",
   "scripts": {
-    "test": "node test/*.test.js"
+    "test": "node test/network.test.js && node test/render.test.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

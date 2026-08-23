@@ -207,6 +207,35 @@ test('renderThreePhaseOverlay shows discard order', () => {
   assert.ok(centerInfo.textContent.includes('Your turn') || centerInfo.textContent.includes('discarding'), 'Should show turn info');
 });
 
+test('renderThreePhaseOverlay shows opponent 3-count when cards masked', () => {
+  setupDOM();
+  const state = makeState([card('3', 'hearts')], [], [], [], { phase: 'threeDiscard' });
+  state.threePhaseOrder = [0, 1, 2, 3];
+  state.threePhaseIndex = 0;
+  // Server masks other players' card faces; only the count is public.
+  state.threePhaseCards = [[card('3', 'hearts')], [], [], []];
+  state.threePhaseCounts = [1, 2, 1, 0];
+  // Nobody discarded yet: all counts should render.
+  state.threePhaseDiscarded = [false, false, false, false];
+  renderThreePhaseOverlay(state);
+  const grid = document.getElementById('three-discard-grid');
+  const html = grid.innerHTML;
+  // Bot1 (2) shows the public count "2 3s", Bot2 (1) shows "1 3",
+  // Bot3 (0) shows "no 3s". No card faces leak for the masked players.
+  assert.ok(html.includes('2 3s'), 'Should show "2 3s" for the 2-count player');
+  assert.ok(html.includes('1 3'), 'Should show "1 3" for the 1-count player');
+  assert.ok(html.includes('no 3s'), 'Should show "no 3s" for the 0-count player');
+  assert.ok(!html.includes('clubs'), 'Masked players must not leak card faces');
+  // Once a player has discarded, the count line is replaced by "—".
+  state.threePhaseDiscarded = [false, true, false, false];
+  renderThreePhaseOverlay(state);
+  const grid2 = document.getElementById('three-discard-grid');
+  const rows = Array.from(grid2.children);
+  const row1 = rows[1]; // Bot1 (discard order 0,1,2,3 -> pos 1 = player 1)
+  assert.ok(row1 && row1.querySelector('.tdp-name').textContent.includes('Bot'), 'pos 1 should be a bot');
+  assert.ok(row1.innerHTML.includes('—'), 'Discarded player shows dash, not the count');
+});
+
 // ─── Scoreboard ───
 
 test('updateScoreboard shows scores', () => {
@@ -220,15 +249,15 @@ test('updateScoreboard shows scores', () => {
 
 // ─── Lobby ───
 
-test('renderLobby shows players', () => {
+test('renderLobby is a no-op (party screen owns the player list)', () => {
   setupDOM();
   const state = makeState([], [], [], [], {
     phase: 'lobby',
     names: ['Alice', 'Bot1', 'Bot2', 'Bot3'],
   });
-  renderLobby(state);
-  const list = document.getElementById('lobby-player-list');
-  assert.ok(list.innerHTML.includes('Alice'), 'Should show Alice');
+  // renderLobby intentionally renders nothing — the party screen handles it.
+  // Regression guard: it must not throw and must not crash the page.
+  assert.doesNotThrow(() => renderLobby(state), 'renderLobby must be a safe no-op');
 });
 
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);

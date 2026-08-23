@@ -184,7 +184,7 @@ export function render(state) {
     const area = document.getElementById('player-' + pos);
     if (!area) continue;
 
-    const isActive = i === currentPlayer && !gameOver;
+    const isActive = i === currentPlayer && !gameOver && state.phase && state.phase !== 'lobby';
     const isHumanPlayer = isHuman[i];
     const hand = hands[i] || [];
     const isFinished = finishedOrder.includes(i);
@@ -196,11 +196,15 @@ export function render(state) {
 
     // Update or create player-label
     let labelEl = area.querySelector('.player-label');
+    // A seat is "occupied" only once the server has added a player there
+    // (bots are only created at game start, so empty lobby seats must not
+    // render as "undefined" + a fake BOT badge).
+    const occupied = playerNames[i] != null;
     let label = '';
     if (isActive && !gameOver) {
       label = '<span class="turn-badge">' + (isHumanPlayer ? 'YOUR TURN' : 'THINKING...') + '</span>';
     }
-    if (!isHumanPlayer) {
+    if (occupied && !isHumanPlayer) {
       label += ' <span class="bot-badge">BOT</span>';
     }
     if (isFinished) {
@@ -208,7 +212,7 @@ export function render(state) {
     }
     const expectedLabel =
       '<div class="player-label">' +
-        '<span class="player-name">' + playerNames[i] + '</span>' +
+        '<span class="player-name">' + (occupied ? playerNames[i] : 'Empty') + '</span>' +
         ' <span class="card-count">(' + hand.length + ' cards)</span>' +
         label +
       '</div>';
@@ -340,7 +344,7 @@ function renderActionBar(state) {
 }
 
 export function renderThreePhaseOverlay(state) {
-  const { threePhaseCards, threePhaseOrder, threePhaseIndex, threePhaseDiscarded, currentPlayer, threePhase, playerNames, isHuman, _playerId } = state;
+  const { threePhaseCards, threePhaseOrder, threePhaseIndex, threePhaseDiscarded, threePhaseCounts, currentPlayer, threePhase, playerNames, isHuman, _playerId } = state;
 
   const overlay = document.getElementById('three-phase-overlay');
   const grid = document.getElementById('three-discard-grid');
@@ -383,7 +387,11 @@ export function renderThreePhaseOverlay(state) {
     } else {
       const emptyEl = document.createElement('span');
       emptyEl.style.cssText = 'color:#666;font-size:12px;';
-      emptyEl.textContent = 'no 3s';
+      // Card faces of opponents are private, but the *count* of their 3s is
+      // public (drives the public discard order) — the server sends it via
+      // threeDiscard.playerCounts. Show "N 3s" when known, else "no 3s".
+      const cnt = threePhaseCounts ? (threePhaseCounts[i] || 0) : 0;
+      emptyEl.textContent = cnt > 0 ? (cnt + (cnt === 1 ? ' 3' : ' 3s')) : 'no 3s';
       cardsDiv.appendChild(emptyEl);
     }
 
@@ -416,10 +424,15 @@ export function updateScoreboard(state) {
   const posToPlayer = [0, 1, 2, 3].map(offset => (_playerId + offset) % 4);
   for (let pos = 0; pos < 4; pos++) {
     const i = posToPlayer[pos];
+    // Empty seats (lobby, before bots are added) have no name/score yet —
+    // render them as a dim "Empty" row instead of "undefined pts".
+    const has = playerNames[i] != null;
+    const name = has ? playerNames[i] : 'Empty';
+    const pts = (scores[i] != null ? scores[i] : 0);
+    const badge = (has && !isHuman[i]) ? ' <span style="color:#64b5f6;font-size:10px;">[BOT]</span>' : '';
     const row = document.createElement('div');
-    row.className = 'score-row';
-    const badge = isHuman[i] ? '' : ' <span style="color:#64b5f6;font-size:10px;">[BOT]</span>';
-    row.innerHTML = '<span class="name">' + playerNames[i] + badge + '</span><span class="pts">' + scores[i] + ' pts</span>';
+    row.className = 'score-row' + (has ? '' : ' empty-seat');
+    row.innerHTML = '<span class="name">' + name + badge + '</span><span class="pts">' + pts + ' pts</span>';
     sb.appendChild(row);
   }
 }
