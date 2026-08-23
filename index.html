@@ -104,6 +104,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .player-label { font-size: 13px; font-weight: 600; margin: 4px 0; display: flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; }
 .player-label .player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .player-label .card-count { font-size: 11px; color: #aaa; font-weight: 400; flex-shrink: 0; }
+.player-label .count-badge {
+  background: #16213e; border: 1px solid #e94560; color: #fff;
+  font-size: 11px; font-weight: 700; min-width: 20px; height: 20px;
+  padding: 0 6px; border-radius: 10px; display: inline-flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.active-player .player-label .count-badge { border-color: #ffd700; color: #ffd700; }
 .player-label .turn-badge { background: #e94560; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
 .player-label .bot-badge { background: #4a4a6a; color: #ccc; font-size: 10px; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
 .player-label .finished-badge { background: #2e7d32; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
@@ -131,7 +138,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .hand-top .card:first-child { margin-left: 0; }
 .hand-top .card .rank, .hand-top .card .suit { display: none; }
 .hand-top .card.face-down::after { transform: rotate(180deg); }
-.hand-left, .hand-right { flex-direction: column; flex-wrap: nowrap; gap: 0; justify-content: center; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.hand-left, .hand-right { flex-direction: column; flex-wrap: nowrap; gap: 0; justify-content: center; min-height: 0; }
 .hand-left .card.face-down::after { transform: rotate(180deg); }
 .hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -6px 0; width: 28px; height: 40px; flex-shrink: 0; }
 .hand-left .card.selected, .hand-right .card.selected { transform: rotate(90deg) translateY(-6px); }
@@ -382,17 +389,14 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-left, .hand-right {
     flex-direction: column;
     gap: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: visible;
     max-height: calc(100dvh - 180px);
     min-height: 40px;
-    scrollbar-width: none;
     width: 100%;
     align-items: center;
     justify-content: center;
     padding: 1px 0;
   }
-  .hand-left::-webkit-scrollbar, .hand-right::-webkit-scrollbar { display: none; }
   .hand-left .card, .hand-right .card {
     transform: rotate(90deg);
     width: 20px;
@@ -557,7 +561,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-top .card .rank, .hand-top .card .suit { display: none; }
   .hand-top .card.face-down::after { font-size: 12px; transform: rotate(180deg); }
 
-  .hand-left, .hand-right { flex-direction: column; gap: 0; justify-content: center; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding: 2px 0; }
+  .hand-left, .hand-right { flex-direction: column; gap: 0; justify-content: center; overflow: visible; padding: 2px 0; }
   .hand-left .card, .hand-right .card {
     transform: rotate(90deg);
     width: 20px; height: 28px;

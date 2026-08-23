@@ -7,7 +7,9 @@ function cardKey(c) {
 }
 
 function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl) {
-  const key = cardKey(card);
+  // Face-down placeholder cards carry a stable per-seat key (backKey); real
+  // cards derive theirs from rank+suit.
+  const key = card.backKey || cardKey(card);
   let cardEl = handEl ? handEl.querySelector('.card[data-key="' + key + '"]') : null;
 
   if (!cardEl) {
@@ -190,9 +192,21 @@ export function render(state) {
     const isFinished = finishedOrder.includes(i);
     const isSelf = i === playerId;
 
+    // Opponents' card faces are private: the server masks their `hand` to []
+    // and only sends the public `handCount`. That count is the truth for both
+    // the label below and the number of face-down cards rendered per seat.
+    const publicCount = (state.handCounts && state.handCounts[i] != null)
+      ? state.handCounts[i]
+      : hand.length;
+
     area.classList.toggle('active-player', isActive);
 
     const handClass = pos === 2 ? 'hand-top' : pos === 3 ? 'hand-left' : pos === 1 ? 'hand-right' : 'hand-bottom';
+    // Side seats are narrow columns (28-48px). A 13-card strip overflows and
+    // forces scrollbars/microscopic cards, so they render a compact 3-card
+    // deck fan and the full count lives in a badge. The top seat is wide
+    // enough to show the full strip of backs.
+    const isSideSeat = pos === 1 || pos === 3;
 
     // Update or create player-label
     let labelEl = area.querySelector('.player-label');
@@ -213,7 +227,9 @@ export function render(state) {
     const expectedLabel =
       '<div class="player-label">' +
         '<span class="player-name">' + (occupied ? playerNames[i] : 'Empty') + '</span>' +
-        ' <span class="card-count">(' + hand.length + ' cards)</span>' +
+        (isSideSeat
+          ? ' <span class="count-badge" data-count="' + publicCount + '">' + publicCount + '</span>'
+          : ' <span class="card-count">(' + (isSelf ? hand.length : publicCount) + ' cards)</span>') +
         label +
       '</div>';
     if (!labelEl || labelEl.outerHTML !== expectedLabel) {
@@ -234,8 +250,19 @@ export function render(state) {
 
     const hideCards = !isSelf;
 
+    // What we actually render in this seat. For opponents the masked hand is
+    // empty, so instead we synthesize `publicCount` face-down placeholders —
+    // the number of cards an opponent still holds is public in Capsa. Side
+    // seats cap at 3 (deck fan; the badge carries the exact count), the top
+    // seat shows the full strip.
+    const sideCap = 3;
+    const backCount = hideCards ? (isSideSeat ? Math.min(sideCap, publicCount) : publicCount) : 0;
+    const renderCards = hideCards
+      ? Array.from({ length: backCount }, (_, b) => ({ backKey: 'back-' + i + '-' + b }))
+      : hand;
+
     // Diff cards: build set of keys in hand, reuse existing DOM nodes
-    const handKeys = new Set(hand.map(cardKey));
+    const handKeys = new Set(renderCards.map(c => (c.backKey || cardKey(c))));
     const existing = handEl.querySelectorAll('.card');
     existing.forEach(el => {
       if (!handKeys.has(el.dataset.key)) el.remove();
@@ -247,8 +274,8 @@ export function render(state) {
 
     // Reorder / append cards to match hand order
     const fragment = document.createDocumentFragment();
-    hand.forEach((card, idx) => {
-      const key = cardKey(card);
+    renderCards.forEach((card, idx) => {
+      const key = card.backKey || cardKey(card);
       let cardEl = existingByKey[key];
       if (cardEl) {
         cardEl.dataset.idx = idx;
@@ -551,8 +578,14 @@ function performHandSizing() {
     h.style.overflowX = '';
     h.style.overflowY = '';
   });
+
 }
 
+// Shrink the opponent hand strips so they fit their seats. The base CSS gives
+// side cards a fixed box with -6px margins; at 13 face-down cards in a short
+// viewport that overflows the seat and clips. We measure the real strip extent
+// and, if it doesn't fit, shrink per-card size (keeping the card ratio) until
+// the computed extent fits, so no seat ever clips its strip.
 function clearAllSizing() {
   const allCards = document.querySelectorAll('.card');
   allCards.forEach(c => {
