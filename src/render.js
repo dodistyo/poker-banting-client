@@ -362,6 +362,14 @@ function renderActionBar(state) {
     actionBar.classList.remove('visible');
     const btnSort = document.getElementById('btn-sort');
     if (btnSort) btnSort.disabled = true;
+    // The turn hint now lives in the always-visible table center (it used to
+    // ride inside this bar, so it auto-hid with the bar). Clear stale
+    // preview/error text when the bar hides — updatePlayButton() only runs
+    // on the human's turn, so this is the only place it gets reset.
+    const preview = document.getElementById('combo-preview');
+    const errorMsg = document.getElementById('error-msg');
+    if (preview) preview.textContent = '';
+    if (errorMsg) errorMsg.textContent = '';
   } else {
     actionBar.classList.add('visible');
     const btnSort = document.getElementById('btn-sort');

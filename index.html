@@ -185,7 +185,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 /* Action bar */
 #action-bar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; z-index: 100; background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 10px; max-width: calc(100% - 16px); }
 #action-bar.visible { display: flex; }
-#action-bar-messages { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 0; }
+/* Action bar — buttons only. The combo preview + error text live in
+   #turn-hint in the table center (see #center-area), same as mobile, so
+   this bar never changes width when text appears/disappears (no jitter). */
+#turn-hint { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 0; }
+#turn-hint:not(:has(span:not(:empty))) { display: none; }
 #action-bar-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 #action-bar button { padding: 6px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 #btn-sort { background: #2196f3; color: #fff; }
@@ -464,11 +468,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     gap: 6px;
     width: 100%;
   }
-  /* Single-row bar: the 2-row (hint above buttons) layout is too tall for
-     short landscape viewports — the hint line would sit on top of the hand.
-     The hint is already shown in the table center (turn pill + "Pick 1 or 2
-     cards" label), so hide it here and keep buttons only. */
-  #action-bar-messages { display: none; }
+  /* Single-row bar: the bar is buttons-only in every viewport now. The
+     combo preview / error text lives in #turn-hint in the table center,
+     which is safe here (it sits in the center grid row, above the hand). */
   #action-bar button {
     padding: 6px 10px;
     font-size: 13px;
@@ -642,10 +644,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #action-bar-buttons {
     flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%;
   }
-  /* Single-row bar: with 2 rows (hint above buttons) the hint line sits on
-     top of the hand in short viewports. The hint is already shown in the
-     table center, so keep buttons only. */
-  #action-bar-messages { display: none; }
+  /* Bar is buttons-only in every viewport (see base #action-bar comment);
+     the hint sits in #turn-hint in the table center. */
   #action-bar button {
     padding: 8px 14px; font-size: 13px;
     min-height: 40px; min-width: 52px;
@@ -869,13 +869,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <div id="center-info"></div>
       <div id="center-cards"></div>
       <div id="pass-markers"></div>
-    </div>
-
-    <div id="action-bar">
-      <div id="action-bar-messages">
+      <div id="turn-hint">
         <span id="combo-preview"></span>
         <span id="error-msg"></span>
       </div>
+    </div>
+
+    <div id="action-bar">
       <div id="action-bar-buttons">
         <button id="btn-sort" onclick="sortHand()">Sort</button>
         <button id="btn-play" onclick="playCards()">Play</button>
