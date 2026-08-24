@@ -139,7 +139,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .hand-top .card.face-down::after { transform: rotate(180deg); }
 .hand-left, .hand-right { flex-direction: column; flex-wrap: nowrap; gap: 0; justify-content: center; min-height: 0; }
 .hand-left .card.face-down::after { transform: rotate(180deg); }
-.hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -6px 0; width: 28px; height: 40px; flex-shrink: 0; }
+/* margin -8px (not -6px like .hand-top): the 90deg rotation is applied AFTER
+   flex layout, so the negative margin collapses the pre-rotation layout box
+   (40px tall) — only 2*margin - (boxH - boxW) reaches the visual card.
+   -8px yields the same 4px overlap as .hand-top's -6px + 2px gap. */
+.hand-left .card, .hand-right .card { transform: rotate(90deg); margin: -8px 0; width: 28px; height: 40px; flex-shrink: 0; }
 .hand-left .card.selected, .hand-right .card.selected { transform: rotate(90deg) translateY(-6px); }
 .hand-left .card .rank, .hand-left .card .suit,
 .hand-right .card .rank, .hand-right .card .suit { display: none; }
@@ -399,7 +403,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     transform: rotate(90deg);
     width: 20px;
     height: 28px;
-    margin: -5px 0;
+    /* rotated-stack: pitch = 28 - 2*margin; overlap = 20 - pitch.
+       -6px -> overlap 4px, matching .hand-top (20px, -5px, 1px gap). */
+    margin: -6px 0;
+    min-width: 0;
     flex-shrink: 0;
   }
   .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
@@ -563,7 +570,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-left .card, .hand-right .card {
     transform: rotate(90deg);
     width: 20px; height: 28px;
-    margin: -4px 0;
+    /* min-width:0 guards against .card's min-width:36px inflating the rotated
+       box. -6px matches .hand-top's 4px overlap (gap 0): 2*6-(28-20)-0 = 4. */
+    margin: -6px 0;
+    min-width: 0;
     flex-shrink: 0;
   }
   .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
@@ -677,7 +687,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-top .card:first-child { margin-left: 0; }
   .hand-top .card.face-down::after { font-size: 10px; transform: rotate(180deg); }
   .hand-left, .hand-right { justify-content: center; gap: 0; }
-  .hand-left .card, .hand-right .card { width: 16px; height: 22px; margin: -3px 0; flex-shrink: 0; }
+  /* min-width:0 stops .card's min-width:32px from inflating the rotated box
+     (else the 16px-wide card becomes a 32px-tall visual card, overlap 18).
+     -4.5px matches .hand-top's 3px overlap here (16x22, gap 0, -3px margin):
+     2*4.5-(22-16)-0 = 3. */
+  .hand-left .card, .hand-right .card { width: 16px; height: 22px; margin: -4.5px 0; flex-shrink: 0; min-width: 0; }
   .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card.face-down::after,
   .hand-right .card.face-down::after { font-size: 10px; }
@@ -710,7 +724,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-top .card:first-child { margin-left: 0; }
   .hand-top .card.face-down::after { font-size: 10px; transform: rotate(180deg); }
   .hand-left, .hand-right { justify-content: center; gap: 0; }
-  .hand-left .card, .hand-right .card { width: 16px; height: 22px; margin: -3px 0; flex-shrink: 0; }
+  /* rotated-stack: -4px -> overlap 2px, matching .hand-top (16x22, -3px, 1px gap) */
+  .hand-left .card, .hand-right .card { width: 16px; height: 22px; margin: -4px 0; flex-shrink: 0; min-width: 0; }
   .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card.face-down::after, .hand-right .card.face-down::after { font-size: 10px; }
   .hand-right .card.face-down::after { transform: rotate(180deg); }
