@@ -103,7 +103,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 .player-label { font-size: 13px; font-weight: 600; margin: 4px 0; display: flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; }
 .player-label .player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.player-label .card-count { font-size: 11px; color: #aaa; font-weight: 400; flex-shrink: 0; }
 .player-label .count-badge {
   background: #16213e; border: 1px solid #e94560; color: #fff;
   font-size: 11px; font-weight: 700; min-width: 20px; height: 20px;
@@ -366,7 +365,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
   /* Player labels: wrap within area */
   .player-label { font-size: 10px; gap: 2px; flex-wrap: wrap; justify-content: center; width: 100%; margin: 2px 0; }
-  .player-label .card-count { font-size: 9px; }
 
   /* Opponent hands: compact card-back strips, JS-scaled to fit */
   .hand-top {
@@ -597,7 +595,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .card.face-down::after { font-size: 16px; }
 
   .player-label { font-size: 10px; }
-  .player-label .card-count { font-size: 9px; }
 
   /* Side seats: stack a compact label inside the narrow column instead of
      letting name/count/badges spill over the window edges. */
@@ -616,8 +613,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .player-area.pos-left .player-label .card-count,
-  .player-area.pos-right .player-label .card-count,
   .player-area.pos-left .player-label .turn-badge,
   .player-area.pos-right .player-label .turn-badge,
   .player-area.pos-left .player-label .bot-badge,
@@ -674,7 +669,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .player-area.pos-top { padding: 1px 4px; }
   .player-area.pos-bottom { padding-bottom: 4px; }
   .player-label { font-size: 9px; }
-  .player-label .card-count { font-size: 8px; }
   .card { width: 32px; height: 44px; min-width: 32px; margin-left: 0; }
   .card .rank { font-size: 9px; }
   .card .suit { font-size: 11px; }
@@ -721,7 +715,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-left .card.face-down::after, .hand-right .card.face-down::after { font-size: 10px; }
   .hand-right .card.face-down::after { transform: rotate(180deg); }
   .player-label { font-size: 9px; gap: 2px; }
-  .player-label .card-count { font-size: 8px; }
   .player-label .turn-badge, .player-label .bot-badge, .player-label .finished-badge { font-size: 8px; padding: 1px 4px; }
   #center-cards { gap: 2px; min-width: 80px; min-height: 44px; }
   #center-info { font-size: 10px; }

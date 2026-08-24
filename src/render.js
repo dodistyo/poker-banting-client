@@ -227,9 +227,9 @@ export function render(state) {
     const expectedLabel =
       '<div class="player-label">' +
         '<span class="player-name">' + (occupied ? playerNames[i] : 'Empty') + '</span>' +
-        (isSideSeat
-          ? ' <span class="count-badge" data-count="' + publicCount + '">' + publicCount + '</span>'
-          : ' <span class="card-count">(' + (isSelf ? hand.length : publicCount) + ' cards)</span>') +
+        (occupied
+          ? ' <span class="count-badge" data-count="' + (isSelf ? hand.length : publicCount) + '">' + (isSelf ? hand.length : publicCount) + '</span>'
+          : '') +
         label +
       '</div>';
     if (!labelEl || labelEl.outerHTML !== expectedLabel) {
