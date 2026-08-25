@@ -78,24 +78,40 @@ export function send(msg) {
 }
 
 export function createRoom(name, isPublic = true) {
-  send({ type: 'create', name, isPublic });
+  // ensureConnected: the socket may be dead here. leaveRoom is the usual
+  // case — the server closes the connection on LeaveRoom and
+  // sendLeaveRoom() nulls connectUrl to stop auto-reconnect — so a plain
+  // send() would drop the message silently and every lobby action
+  // (create/join/rejoin) would be dead until a full page reload.
+  ensureConnected(() => send({ type: 'create', name, isPublic }));
 }
 
 export function joinRoom(code, name) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
-    const origOnOpen = onOpenCb;
-    if (reconnectTimer) clearTimeout(reconnectTimer);
-    const oldWs = ws;
-    ws = null;
-    if (oldWs) { oldWs.onclose = null; oldWs.onmessage = null; oldWs.onerror = null; }
-    connect(url, onMessageCb, () => {
-      if (origOnOpen) origOnOpen();
-      send({ type: 'join', code, name });
-    }, onCloseCb);
+  ensureConnected(() => send({ type: 'join', code, name }));
+}
+
+// Reuse-or-reconnect the socket, then fire `thenSend`. This is the single
+// reconnection path for user-initiated lobby actions; the location-derived
+// URL mirrors what app.js uses for the initial connect.
+function ensureConnected(thenSend) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    if (thenSend) thenSend();
     return;
   }
-  send({ type: 'join', code, name });
+  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
+  const origOnOpen = onOpenCb;
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  const oldWs = ws;
+  ws = null;
+  // Detach handlers so the dying socket's close event can't trigger
+  // scheduleReconnect() and race a duplicate connection.
+  if (oldWs) { oldWs.onclose = null; oldWs.onmessage = null; oldWs.onerror = null; }
+  // connect() also restores connectUrl (nullified by sendLeaveRoom), so
+  // auto-reconnect works again once this socket is open.
+  connect(url, onMessageCb, () => {
+    if (origOnOpen) origOnOpen();
+    if (thenSend) thenSend();
+  }, onCloseCb);
 }
 
 function fetchAsMessage(url, msgType, fallback) {
@@ -134,7 +150,10 @@ export function sendLeaveRoom() {
 }
 
 export function sendRejoin(code, name, token) {
-  send({ type: 'rejoin', code, name, token });
+  // Also routed through ensureConnected: retryRejoin() fires from a timer
+  // and can land while the socket is closing/closed (e.g. right after a
+  // leave), which used to drop the rejoin silently.
+  ensureConnected(() => send({ type: 'rejoin', code, name, token }));
 }
 
 export function isConnected() {
