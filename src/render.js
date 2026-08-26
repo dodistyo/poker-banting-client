@@ -89,6 +89,9 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
               const hands = state.hands;
               const [moved] = hands[playerIdx].splice(fromIdx, 1);
               hands[playerIdx].splice(adjTarget, 0, moved);
+              if (state.onManualReorder) {
+                state.onManualReorder(hands[playerIdx].map(c => c.rank + ':' + c.suit));
+              }
               render(state);
             }
           };

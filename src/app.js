@@ -6,6 +6,13 @@ import { saveSession, loadSession, clearSession } from './session.js';
 let state = null;
 let playerId = null;
 let roomCode = null;
+// The client hand is a projection of the server hand, which is ALWAYS in
+// deal order. So any client-side reorder (Sort, or a manual drag) reverts on
+// the next state message (bot play/pass, our own play echo). To make a
+// reorder "sticky" we remember the desired card order here and re-apply it in
+// adaptState. Last explicit reorder wins: Sort sets it to sorted order, a drag
+// sets it to the new manual order. Reset to null on redeal/new game.
+let handOrder = null;
 let serverUrl =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.host +
@@ -141,6 +148,7 @@ function handleMessage(msg) {
     case 'created':
       resetRejoin();
       disarmLobbyWatchdog();
+      handOrder = null; // fresh deal
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -153,6 +161,7 @@ function handleMessage(msg) {
     case 'joined':
       resetRejoin();
       disarmLobbyWatchdog();
+      handOrder = null; // fresh deal
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -164,6 +173,7 @@ function handleMessage(msg) {
 
     case 'rejoined':
       resetRejoin();
+      handOrder = null; // fresh deal
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -262,6 +272,20 @@ function adaptState(serverState) {
       selected: false,
     }));
   });
+  // Persist the user's reorder preference: the server hand is always in deal
+  // order, so re-apply the remembered order here so it survives every rebuild.
+  if (handOrder && playerId != null) {
+    const byKey = {};
+    for (const c of adapted.hands[playerId]) byKey[c.rank + ':' + c.suit] = c;
+    const reordered = [];
+    for (const key of handOrder) if (byKey[key]) { reordered.push(byKey[key]); delete byKey[key]; }
+    // Append any cards that weren't in the stored order (new round, redeal) so
+    // we never drop a card.
+    for (const k of Object.keys(byKey)) reordered.push(byKey[k]);
+    if (reordered.length === adapted.hands[playerId].length) {
+      adapted.hands[playerId] = reordered;
+    }
+  }
   adapted.scores = serverState.scores || [0, 0, 0, 0];
   adapted.finishedOrder = serverState.finishedOrder || [];
   adapted.logEntries = serverState.log || [];
@@ -299,6 +323,10 @@ function adaptState(serverState) {
 
   adapted.selectCard = (pi, ci) => selectCard(pi, ci);
   adapted.updatePlayButton = () => updatePlayButton();
+  // A manual drag reorder is the user's explicit intent and becomes the new
+  // sticky order (supersedes a prior Sort) so it isn't reverted on the next
+  // state rebuild.
+  adapted.onManualReorder = (keys) => { handOrder = keys; };
 
   return adapted;
 }
@@ -653,6 +681,7 @@ export function sortHand() {
 
   clearSelections();
   state.hands[playerId] = sortCards(state.hands[playerId]);
+  handOrder = state.hands[playerId].map(c => c.rank + ':' + c.suit);
   render(state);
 }
 
@@ -660,6 +689,7 @@ export function nextRound() {
   document.getElementById('gameover-overlay').classList.remove('show');
   clearSession();
   disconnect();
+  handOrder = null;
   state = null;
   playerId = null;
   roomCode = null;
