@@ -93,13 +93,29 @@ export function joinRoom(code, name) {
 // Reuse-or-reconnect the socket, then fire `thenSend`. This is the single
 // reconnection path for user-initiated lobby actions; the location-derived
 // URL mirrors what app.js uses for the initial connect.
+//
+// The pending one-shot "send on open" is tracked so it can be cancelled if
+// the socket is replaced before it opens (a rapid second lobby click while
+// the first is still CONNECTING). Leaving a stale one-shot listener on the
+// old socket would re-fire an earlier create/join after a new socket is
+// already open — the server would open two rooms and the first becomes an
+// orphan.
+let pendingOpenSend = null;
+
+function cancelPendingOpenSend() {
+  if (pendingOpenSend) {
+    pendingOpenSend.ws.removeEventListener('open', pendingOpenSend.listener);
+    pendingOpenSend = null;
+  }
+}
+
 function ensureConnected(thenSend) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     if (thenSend) thenSend();
     return;
   }
+  cancelPendingOpenSend();
   const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
-  const origOnOpen = onOpenCb;
   if (reconnectTimer) clearTimeout(reconnectTimer);
   const oldWs = ws;
   ws = null;
@@ -108,10 +124,21 @@ function ensureConnected(thenSend) {
   if (oldWs) { oldWs.onclose = null; oldWs.onmessage = null; oldWs.onerror = null; }
   // connect() also restores connectUrl (nullified by sendLeaveRoom), so
   // auto-reconnect works again once this socket is open.
-  connect(url, onMessageCb, () => {
-    if (origOnOpen) origOnOpen();
-    if (thenSend) thenSend();
-  }, onCloseCb);
+  const newWs = connect(url, onMessageCb, onOpenCb, onCloseCb);
+  // Fire thenSend exactly once, on THIS socket, via a one-shot listener.
+  // We deliberately do NOT bake thenSend into onOpenCb: wrapping it there
+  // meant the next reconnect would re-invoke the previous wrapper's
+  // thenSend, so rapid create→leave→create cycles re-fired stale "create"
+  // messages on one socket — the server opened two rooms and the first
+  // became an orphan (its session was never removed).
+  if (thenSend) {
+    const listener = () => {
+      if (pendingOpenSend && pendingOpenSend.ws === newWs) pendingOpenSend = null;
+      thenSend();
+    };
+    pendingOpenSend = { ws: newWs, listener };
+    newWs.addEventListener('open', listener, { once: true });
+  }
 }
 
 function fetchAsMessage(url, msgType, fallback) {
@@ -147,6 +174,36 @@ export function sendLeaveRoom() {
   if (reconnectTimer) clearTimeout(reconnectTimer);
   stopPing();
   reconnectAttempts = 0;
+  // The server closes the connection in response to leaveRoom (ws.rs sets
+  // cleaned_up and breaks the read loop). Drop the socket locally right
+  // away instead of waiting for the close event: readyState lags the
+  // server-side teardown, so a fast-path reuse of this "still OPEN" socket
+  // would silently drop the next lobby message (create/join) with no
+  // response, no close, no error. The detached handlers mean this close
+  // can't also trigger scheduleReconnect() (connectUrl is null anyway).
+  if (ws) {
+    ws.onclose = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.close();
+    ws = null;
+  }
+}
+
+// Close and drop the current socket without reconnecting, so the next
+// user-initiated action (create/join/rejoin via ensureConnected) opens a
+// fresh one. Used by the create watchdog when the server never responds.
+export function resetConnection() {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  stopPing();
+  reconnectAttempts = 0;
+  if (ws) {
+    ws.onclose = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.close();
+    ws = null;
+  }
 }
 
 export function sendRejoin(code, name, token) {

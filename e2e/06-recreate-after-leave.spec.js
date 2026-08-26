@@ -45,3 +45,42 @@ test('re-create room after leaving via back arrow', async ({ page }) => {
   // We're the host of the new room (Start button is creator-only).
   await expect(page.locator('#party-start-btn')).toBeVisible();
 });
+
+// Regression (2nd round): the single-cycle flow above passed, but doing it
+// REPEATEDLY broke — two latent races surfaced only after a few cycles:
+//
+//   1. Stale on-open replay: ensureConnected used to bake the "send create"
+//      callback into onOpenCb, so the NEXT reconnect re-fired the PREVIOUS
+//      cycle's create on a fresh socket — two rooms, one orphaned.
+//   2. Zombie socket: after the server's leaveRoom teardown the local
+//      socket's readyState still read OPEN, so the fast path sent the next
+//      create into a socket the server no longer read — no response, no
+//      close, no error. The Create button became a silent no-op.
+//
+// Looping the full cycle here is what makes both failures loud instead of
+// "works until it suddenly doesn't".
+test('repeated create->leave cycles never wedge the lobby', async ({ page }) => {
+  test.setTimeout(120_000);
+  const cycles = 6;
+  const codes = [];
+  for (let i = 0; i < cycles; i++) {
+    await createRoomViaUI(page, 'LoopDodi');
+    const partyCode = page.locator('#lobby-screen-party.active #party-code');
+    await expect(partyCode).toBeVisible({ timeout: 10_000 });
+    const code = (await partyCode.textContent()).trim();
+    expect(code, `cycle ${i + 1}: no room code`).toMatch(/^[A-Z0-9]{6}$/);
+    codes.push(code);
+
+    // Leave via the waiting-room back arrow, then straight back in.
+    await page.click('#lobby-screen-party.active .lobby-back-icon');
+    await expect(page.locator('#lobby-screen-main.active')).toBeVisible();
+    await page.click('li.primary'); // New Game
+    await page.locator('#lobby-name-input').fill('LoopDodi');
+    await page.click('#lobby-screen-new .lobby-submit-btn');
+  }
+
+  // Every cycle produced its own room: no replay (which would leave us on a
+  // duplicated/stale code) and no zombie socket (which would leave us stuck
+  // on the New Game screen with no party code at all).
+  expect(new Set(codes).size).toBe(cycles);
+});

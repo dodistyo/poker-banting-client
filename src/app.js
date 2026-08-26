@@ -1,6 +1,6 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
-import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendLeaveRoom, sendRejoin, isConnected } from './network.js';
+import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendLeaveRoom, sendRejoin, isConnected, resetConnection } from './network.js';
 import { saveSession, loadSession, clearSession } from './session.js';
 
 let state = null;
@@ -97,6 +97,33 @@ function resetRejoin() {
   }
 }
 
+// Lobby-action watchdog. A create/join must be answered (created / joined /
+// error) within a few seconds. If it isn't, the message most likely went out
+// on a "zombie" socket — one whose readyState still reads OPEN even though
+// the server has already dropped it — so it was silently lost. Rather than
+// leaving the user on a dead button, reset the connection (so the next click
+// opens a fresh socket via ensureConnected) and surface a real error.
+const LOBBY_RESPOND_MS = 8000;
+let lobbyWatchdog = null;
+let lobbyWatchLabel = '';
+
+function armLobbyWatchdog(label) {
+  disarmLobbyWatchdog();
+  lobbyWatchLabel = label;
+  lobbyWatchdog = setTimeout(() => {
+    lobbyWatchdog = null;
+    resetConnection();
+    showError(`Server didn't respond to "${label}". Connection reset — try again.`);
+  }, LOBBY_RESPOND_MS);
+}
+
+function disarmLobbyWatchdog() {
+  if (lobbyWatchdog) {
+    clearTimeout(lobbyWatchdog);
+    lobbyWatchdog = null;
+  }
+}
+
 function onDisconnect() {
   updateConnectionStatus(false);
 }
@@ -113,6 +140,7 @@ function handleMessage(msg) {
   switch (msg.type) {
     case 'created':
       resetRejoin();
+      disarmLobbyWatchdog();
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -124,6 +152,7 @@ function handleMessage(msg) {
 
     case 'joined':
       resetRejoin();
+      disarmLobbyWatchdog();
       playerId = msg.playerId;
       roomCode = msg.code;
       state = adaptState(msg.state);
@@ -191,6 +220,7 @@ function handleMessage(msg) {
       break;
 
     case 'error':
+      disarmLobbyWatchdog();
       if (rejoinPending) {
         // Reload race: the old socket's disconnect hadn't landed when we sent
         // the first rejoin. Retry silently until the seat is registered. Once
@@ -428,6 +458,7 @@ window.__app_toggleReady = () => {
 window.__app_leaveRoom = () => {
   sendLeaveRoom();
   resetRejoin();
+  disarmLobbyWatchdog();
   roomCode = null;
   playerId = null;
   state = null;
@@ -494,6 +525,7 @@ export function handleCreateRoom() {
   if (nameError) nameError.textContent = '';
   const publicToggle = document.getElementById('lobby-public-toggle');
   const isPublic = publicToggle ? publicToggle.checked : true;
+  armLobbyWatchdog('Create Room');
   createRoom(name, isPublic);
 }
 
@@ -521,6 +553,7 @@ export function handleJoinRoom() {
   }
   if (!hasError) {
     roomCode = code;
+    armLobbyWatchdog('Join ' + code);
     joinRoom(code, name);
   }
 }
