@@ -89,6 +89,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #header button:hover { background: #c73650; }
 #sidebar-toggle-btn { padding: 6px 10px; background: #0f3460; font-size: 15px; }
 #sidebar-toggle-btn:hover { background: #1a4a7a; }
+/* Mobile game-log button: hidden by default (desktop has the sidebar),
+   shown in the mobile media queries below (same places #log is hidden).
+   Specificity kept at single-ID so the media-query override wins. */
+#log-fab-btn { display: none; padding: 6px 10px; background: #0f3460; font-size: 15px; }
+#log-fab-btn:hover { background: #1a4a7a; }
 
 /* Table area — minmax(0,1fr) rows: same shrink reason as #app above. */
 #table-area { display: grid; grid-template-rows: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); grid-template-columns: 1fr 1fr 1fr; position: relative; background: radial-gradient(ellipse at center, #1a5c2a 0%, #0d3518 100%); overflow: hidden; }
@@ -219,6 +224,24 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #log .log-entry strong { color: #e94560; }
 #log .log-entry .bot { color: #64b5f6; }
 
+/* Mobile game log: bottom sheet. #log-fab opens it; the sheet re-renders
+   the same log entries from state (see renderLog) into #sheet-log. */
+#sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 94; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+#log-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 95; background: #16213e; border-top: 1px solid #0f3460; border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform 0.25s ease; max-height: 55vh; display: flex; flex-direction: column; box-shadow: 0 -8px 32px rgba(0,0,0,0.5); }
+/* Grabber pill — tells the user this is a draggable/closeable sheet. */
+#log-sheet::before { content: ''; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; border-radius: 2px; background: #33405e; }
+#log-sheet.open { transform: translateY(0); }
+#log-sheet.open + #sheet-backdrop, #sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+#log-sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; border-bottom: 1px solid #0f3460; flex-shrink: 0; }
+#log-sheet-header h3 { margin: 0; font-size: 14px; color: #e94560; }
+#sheet-close-btn { background: none; border: none; color: #cdd6e0; font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+#sheet-close-btn:hover { color: #fff; }
+#sheet-log { overflow-y: auto; padding: 8px 16px calc(12px + env(safe-area-inset-bottom, 0px)); font-size: 12px; flex: 1; overscroll-behavior: contain; }
+#sheet-log .log-entry { padding: 4px 0; border-bottom: 1px solid #0f346022; color: #c9d1d9; }
+#sheet-log .log-entry strong { color: #e94560; }
+#sheet-log .log-entry .bot { color: #64b5f6; }
+#sheet-log:empty::after { content: 'Log masih kosong — main dulu dong.'; color: #556; font-style: italic; }
+
 /* Game over overlay */
 #gameover-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 90; }
 #gameover-overlay.show { display: flex; }
@@ -304,6 +327,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #header h1 { font-size: 14px; }
   #header button { padding: 3px 10px; font-size: 11px; }
   #sidebar-toggle-btn { display: none; }
+  #log-fab-btn { display: inline-block; font-size: 15px; padding: 3px 10px; }
+  /* Sidebar log is hidden on mobile — the 📜 button opens the bottom sheet. */
 
   #sidebar {
     grid-column: 1 / -1;
@@ -514,6 +539,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #header h1 { font-size: 14px; }
   #header button { padding: 3px 8px; font-size: 11px; }
   #sidebar-toggle-btn { display: none; }
+  #log-fab-btn { display: inline-block; font-size: 15px; padding: 3px 10px; }
 
   #sidebar {
     position: fixed; bottom: 0; left: 0; right: 0;
@@ -863,6 +889,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     <h1>Capsa Banting</h1>
     <div class="controls">
       <button onclick="toggleSidebar()" id="sidebar-toggle-btn">&#9776;</button>
+      <button onclick="toggleLogSheet()" id="log-fab-btn" title="Game Log">&#128220;</button>
       <span id="room-code-header" style="display:none; color: #ffd700; font-family: monospace; font-size: 14px; margin-right: 10px;"></span>
     </div>
     <span id="connection-status" class="disconnected">Disconnected</span>
@@ -900,8 +927,20 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   </div>
 </div>
 
+<!-- Mobile game-log bottom sheet (opened by #log-fab-btn). z-index above the
+     game-over/three-phase overlays on purpose: it's an info layer the user
+     can dismiss with one tap. -->
+<div id="log-sheet" role="dialog" aria-label="Game log" aria-modal="false">
+  <div id="log-sheet-header">
+    <h3>Game Log</h3>
+    <button id="sheet-close-btn" onclick="closeLogSheet()" aria-label="Close log">&times;</button>
+  </div>
+  <div id="sheet-log"></div>
+</div>
+<div id="sheet-backdrop" onclick="closeLogSheet()"></div>
+
 <script type="module">
-import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, selectCard, passTurn, toggleSidebar, nextRound, playAgain, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
+import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, selectCard, passTurn, toggleSidebar, nextRound, playAgain, openLogSheet, closeLogSheet, toggleLogSheet, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
 
 console.log('[INIT] Modules loaded successfully');
 
@@ -914,6 +953,9 @@ window.playCards = playCards;
 window.selectCard = selectCard;
 window.passTurn = passTurn;
 window.toggleSidebar = toggleSidebar;
+window.openLogSheet = openLogSheet;
+window.closeLogSheet = closeLogSheet;
+window.toggleLogSheet = toggleLogSheet;
 window.nextRound = nextRound;
 window.playAgain = playAgain;
 

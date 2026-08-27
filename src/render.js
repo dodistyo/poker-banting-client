@@ -479,24 +479,25 @@ export function renderLobby(state) {
   // No-op — party screen handles player list rendering
 }
 
+// Renders new log entries into every log container: the desktop sidebar
+// (#log, hidden on mobile) and the mobile bottom sheet (#sheet-log, hidden
+// on desktop). Both track their own renderedCount so incremental appends
+// work independently.
 function renderLog(state) {
-  const logEl = document.getElementById('log');
-  if (!logEl) return;
-
   const logEntries = state.log || [];
-  const renderedCount = parseInt(logEl.dataset.renderedCount || '0');
-
-  if (logEntries.length <= renderedCount) return;
-
-  for (let i = renderedCount; i < logEntries.length; i++) {
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.textContent = logEntries[i];
-    logEl.appendChild(entry);
+  const targets = ['log', 'sheet-log'].map(id => document.getElementById(id)).filter(Boolean);
+  for (const logEl of targets) {
+    const renderedCount = parseInt(logEl.dataset.renderedCount || '0');
+    if (logEntries.length <= renderedCount) continue;
+    for (let i = renderedCount; i < logEntries.length; i++) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = logEntries[i];
+      logEl.appendChild(entry);
+    }
+    logEl.dataset.renderedCount = logEntries.length;
+    logEl.scrollTop = logEl.scrollHeight;
   }
-
-  logEl.dataset.renderedCount = logEntries.length;
-  logEl.scrollTop = logEl.scrollHeight;
 }
 
 let sizingRAFId = null;

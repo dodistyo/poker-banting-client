@@ -154,8 +154,8 @@ function handleMessage(msg) {
       state = adaptState(msg.state);
       saveSession(roomCode, playerId, resolvePlayerName(playerId, 'You'), msg.token);
       handlePhase();
+      clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
-      clearLog();
       break;
 
     case 'joined':
@@ -167,8 +167,8 @@ function handleMessage(msg) {
       state = adaptState(msg.state);
       saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token);
       handlePhase();
+      clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
-      clearLog();
       break;
 
     case 'rejoined':
@@ -179,8 +179,8 @@ function handleMessage(msg) {
       state = adaptState(msg.state);
       saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token);
       handlePhase();
+      clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
-      clearLog();
       break;
 
     case 'roomList':
@@ -344,6 +344,7 @@ function handlePhase() {
 
   if (state.phase === 'lobby') {
     showLobby();
+    closeLogSheet();
     return;
   }
 
@@ -357,11 +358,13 @@ function handlePhase() {
   }
 
   if (state.threePhase) {
+    closeLogSheet();
     renderThreePhaseOverlay(state);
     return;
   }
 
   if (state.gameOver) {
+    closeLogSheet();
     showGameOver();
     return;
   }
@@ -744,11 +747,44 @@ export function toggleSidebar() {
 }
 
 function clearLog() {
-  const logEl = document.getElementById('log');
-  if (logEl) {
-    logEl.innerHTML = '';
-    logEl.dataset.renderedCount = '0';
+  // Both the desktop sidebar (#log) and the mobile bottom sheet (#sheet-log)
+  // render the same entries, so reset both.
+  for (const id of ['log', 'sheet-log']) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = '';
+      el.dataset.renderedCount = '0';
+    }
   }
+  closeLogSheet();
+}
+
+// ── Mobile game-log bottom sheet ──────────────────────────────────────────
+// The sidebar's #log is display:none on mobile (media queries), so the log
+// content is mirrored into #sheet-log (a bottom sheet) by renderLog(). The
+// sheet is a pure info layer: z-index above the game-over/three-phase
+// overlays, one-tap dismiss (X or backdrop), auto-closed on new game / lobby.
+export function openLogSheet() {
+  const sheet = document.getElementById('log-sheet');
+  const backdrop = document.getElementById('sheet-backdrop');
+  if (!sheet) return;
+  sheet.classList.add('open');
+  if (backdrop) backdrop.classList.add('open');
+  const body = document.getElementById('sheet-log');
+  if (body) body.scrollTop = body.scrollHeight;
+}
+
+export function closeLogSheet() {
+  const sheet = document.getElementById('log-sheet');
+  const backdrop = document.getElementById('sheet-backdrop');
+  if (sheet) sheet.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('open');
+}
+
+export function toggleLogSheet() {
+  const sheet = document.getElementById('log-sheet');
+  if (sheet && sheet.classList.contains('open')) closeLogSheet();
+  else openLogSheet();
 }
 
 function updatePlayButton() {

@@ -32,6 +32,7 @@ export function makeServerState({
   threeDiscard = null,
   round = 1,
   totalScores = [0, 0, 0, 0],
+  log = [],
 } = {}) {
   const hs = hands || [makeHand(13, 0), makeHand(13, 13), makeHand(13, 26), makeHand(13, 39)];
   return {
@@ -53,7 +54,7 @@ export function makeServerState({
     round,
     totalScores,
     threeDiscard,
-    log: [],
+    log,
   };
 }
 
