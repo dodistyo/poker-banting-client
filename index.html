@@ -89,11 +89,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #header button:hover { background: #c73650; }
 #sidebar-toggle-btn { padding: 6px 10px; background: #0f3460; font-size: 15px; }
 #sidebar-toggle-btn:hover { background: #1a4a7a; }
-/* Mobile game-log button: hidden by default (desktop has the sidebar),
-   shown in the mobile media queries below (same places #log is hidden).
-   Specificity kept at single-ID so the media-query override wins. */
-#log-fab-btn { display: none; padding: 6px 10px; background: #0f3460; font-size: 15px; }
-#log-fab-btn:hover { background: #1a4a7a; }
+/* Mobile game-log button: lives inside #sidebar (the bottom name+points
+   strip on mobile). Hidden by default — desktop reads #log inline. Shown
+   as a centered pill in the mobile media queries below (same places #log
+   is hidden). Specificity kept at single-ID so the media override wins. */
+#log-fab-btn { display: none; }
 
 /* Table area — minmax(0,1fr) rows: same shrink reason as #app above. */
 #table-area { display: grid; grid-template-rows: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); grid-template-columns: 1fr 1fr 1fr; position: relative; background: radial-gradient(ellipse at center, #1a5c2a 0%, #0d3518 100%); overflow: hidden; }
@@ -327,27 +327,42 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #header h1 { font-size: 14px; }
   #header button { padding: 3px 10px; font-size: 11px; }
   #sidebar-toggle-btn { display: none; }
-  #log-fab-btn { display: inline-block; font-size: 15px; padding: 3px 10px; }
-  /* Sidebar log is hidden on mobile — the 📜 button opens the bottom sheet. */
 
   #sidebar {
     grid-column: 1 / -1;
     grid-row: 3;
     border-left: none;
     border-top: 2px solid #0f3460;
-    max-height: 44px;
-    flex-direction: row;
+    flex-direction: column;
   }
   #sidebar h3 { display: none; }
   #scoreboard {
     display: flex;
     gap: 2px;
-    border-bottom: none;
+    border-bottom: 1px solid #0f346044;
     border-right: none;
-    padding: 2px 6px;
-    flex: 1;
+    padding: 4px 6px 2px;
     justify-content: space-between;
   }
+  /* 📜 Game Log — centered pill in the bottom strip, below the name+points
+     chips (user preference: bottom center, not the top bar). */
+  #log-fab-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: calc(100% - 16px);
+    margin: 3px 8px calc(5px + env(safe-area-inset-bottom, 0px));
+    padding: 5px 10px;
+    background: #0f3460;
+    color: #c9d1d9;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  #log-fab-btn:active { background: #1a4a7a; }
   #scoreboard .score-row {
     display: flex;
     flex-direction: column;
@@ -539,22 +554,39 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #header h1 { font-size: 14px; }
   #header button { padding: 3px 8px; font-size: 11px; }
   #sidebar-toggle-btn { display: none; }
-  #log-fab-btn { display: inline-block; font-size: 15px; padding: 3px 10px; }
 
   #sidebar {
     position: fixed; bottom: 0; left: 0; right: 0;
     border-left: none; border-top: 2px solid #0f3460;
-    max-height: 80px;
-    flex-direction: row;
+    flex-direction: column;
     z-index: 50;
   }
   #sidebar h3 { display: none; }
   #scoreboard {
     display: flex; gap: 10px;
-    border-bottom: none; border-right: none;
-    padding: 4px 10px;
-    flex: 1; justify-content: space-around;
+    border-bottom: 1px solid #0f346044; border-right: none;
+    padding: 4px 10px 2px;
+    justify-content: space-around;
   }
+  /* 📜 Game Log — centered pill below the name+points chips (short landscape). */
+  #log-fab-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: calc(100% - 16px);
+    max-width: 340px;
+    margin: 3px auto calc(5px + env(safe-area-inset-bottom, 0px));
+    padding: 5px 10px;
+    background: #0f3460;
+    color: #c9d1d9;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  #log-fab-btn:active { background: #1a4a7a; }
   #scoreboard .score-row {
     flex-direction: column; font-size: 10px; padding: 1px 0;
     align-items: center;
@@ -703,9 +735,38 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #header h1 { font-size: 12px; }
   #header { padding: 0 6px; }
   #header button { padding: 2px 6px; font-size: 10px; }
-  #sidebar { max-height: 56px; }
-  #scoreboard { gap: 6px; padding: 2px 8px; }
-  #scoreboard .score-row { font-size: 9px; }
+  /* 2-row strip: name+points chips above, compact 📜 Game Log pill below.
+     No max-height — it sizes to content (the old 56px cap clipped the pill). */
+  #sidebar {
+    border-left: none; border-top: 2px solid #0f3460;
+    flex-direction: column;
+  }
+  #sidebar h3 { display: none; }
+  #scoreboard {
+    display: flex; gap: 6px; padding: 2px 8px;
+    border-bottom: 1px solid #0f346044; border-right: none;
+    justify-content: space-around;
+  }
+  #scoreboard .score-row { font-size: 9px; padding: 0 2px; }
+  #log-fab-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: calc(100% - 12px);
+    max-width: 300px;
+    margin: 2px auto calc(4px + env(safe-area-inset-bottom, 0px));
+    padding: 3px 10px;
+    background: #0f3460;
+    color: #c9d1d9;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  #log-fab-btn:hover { background: #1a4a7a; }
+  #log-fab-btn:active { background: #1a4a7a; }
   .player-area.pos-top { padding: 1px 4px; }
   .player-area.pos-bottom { padding-bottom: 4px; }
   .player-label { font-size: 9px; }
@@ -726,7 +787,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-left .card.face-down::after,
   .hand-right .card.face-down::after { font-size: 10px; }
   .hand-right .card.face-down::after { transform: rotate(180deg); }
-  #action-bar { padding: 4px 6px; gap: 4px; bottom: calc(38px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
+  #action-bar { padding: 4px 6px; gap: 4px; bottom: calc(63px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
   #action-bar-buttons { flex-wrap: wrap; justify-content: stretch; gap: 4px; width: 100%; }
   #action-bar button { padding: 6px 10px; font-size: 11px; min-height: 32px; min-width: 44px; flex: 1 1 auto; }
   #center-cards { min-height: 36px; }
@@ -767,8 +828,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #action-bar { padding: 4px 6px; gap: 4px; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(46px + env(safe-area-inset-bottom, 0px)); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
   #action-bar-buttons { flex-wrap: wrap; justify-content: stretch; gap: 4px; width: 100%; }
   #action-bar button { padding: 6px 10px; font-size: 12px; min-height: 40px; flex: 1 1 auto; }
-  #sidebar { max-height: 50px; }
-  #scoreboard { min-width: 0; gap: 2px; padding: 2px 6px; }
+  /* No max-height on the sidebar: the 2-row strip (name+points chips above,
+     centered 📜 Game Log pill below) sizes to its content. */
+  #sidebar { max-height: none; }
+  #scoreboard { min-width: 0; gap: 2px; padding: 4px 6px 2px; }
   #scoreboard .score-row { font-size: 9px; padding: 1px 2px; }
 }
 </style>
@@ -889,7 +952,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     <h1>Capsa Banting</h1>
     <div class="controls">
       <button onclick="toggleSidebar()" id="sidebar-toggle-btn">&#9776;</button>
-      <button onclick="toggleLogSheet()" id="log-fab-btn" title="Game Log">&#128220;</button>
       <span id="room-code-header" style="display:none; color: #ffd700; font-family: monospace; font-size: 14px; margin-right: 10px;"></span>
     </div>
     <span id="connection-status" class="disconnected">Disconnected</span>
@@ -924,6 +986,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     <div id="scoreboard"></div>
     <h3>Game Log</h3>
     <div id="log"></div>
+    <button onclick="toggleLogSheet()" id="log-fab-btn" title="Game Log">&#128220; Game Log</button>
   </div>
 </div>
 

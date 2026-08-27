@@ -1,13 +1,15 @@
 // Mobile game-log bottom sheet.
 // On mobile (≤768px portrait / short landscape) the sidebar's #log is
 // display:none, so log entries are mirrored into #sheet-log — a bottom sheet
-// opened by the 📜 header button (#log-fab-btn). Covers:
-//  - FAB visible on mobile, hidden on desktop
+// opened by the "📜 Game Log" pill (#log-fab-btn) which lives INSIDE the
+// bottom strip (#sidebar) — the name+points bar — NOT in the top header
+// (user preference: bottom center, not the top bar). Covers:
+//  - pill visible on mobile inside the bottom strip, absent from #header
 //  - open → entries render into #sheet-log (same content as state.log)
 //  - incremental appends on new state messages
 //  - close via X button and via backdrop
 //  - sheet auto-closes on new game (created) and on game over
-//  - desktop regression: #log still renders in the sidebar, FAB hidden
+//  - desktop regression: #log still renders in the sidebar, pill hidden
 import { test, expect } from '@playwright/test';
 import { makeServerState, injectCreated, injectState } from './helpers.js';
 
@@ -17,14 +19,37 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize(MOBILE);
 });
 
-test('mobile: FAB visible, sidebar log hidden, sheet opens with entries', async ({ page }) => {
+test('mobile: pill visible in the bottom strip (not the top bar), sheet opens with entries', async ({ page }) => {
   await page.goto('/');
   await injectCreated(page, makeServerState({
     log: ['Game started', 'Dodi leads with 9♠', 'Bot 2 follows with K♠'],
   }));
 
-  // FAB shown on mobile; the sidebar log itself is display:none
+  // The pill lives in the bottom strip (#sidebar), which on mobile holds the
+  // name+points chips — and it must NOT be in the top header bar.
   await expect(page.locator('#log-fab-btn')).toBeVisible();
+  expect(await page.locator('#sidebar #log-fab-btn').count()).toBe(1);
+  expect(await page.locator('#header #log-fab-btn').count()).toBe(0);
+  // It sits below the name+points chips and is centered relative to the strip
+  // itself (not the viewport — a vertical scrollbar can shrink the strip's
+  // width, and the pill must stay centered on the strip the user taps).
+  const geo = await page.evaluate(() => {
+    const fab = document.getElementById('log-fab-btn').getBoundingClientRect();
+    const chips = document.getElementById('scoreboard').getBoundingClientRect();
+    const sb = document.getElementById('sidebar').getBoundingClientRect();
+    return {
+      fabCx: fab.x + fab.width / 2,
+      sbCx: sb.x + sb.width / 2,
+      chipBottom: chips.bottom,
+      fabTop: fab.top,
+      sbBottom: sb.bottom,
+      vh: window.innerHeight,
+    };
+  });
+  expect(geo.fabTop).toBeGreaterThan(geo.chipBottom);          // below the chips
+  expect(Math.abs(geo.fabCx - geo.sbCx)).toBeLessThan(3);      // centered on strip
+  expect(geo.sbBottom).toBeLessThanOrEqual(geo.vh + 1);        // strip not clipped off-screen
+  // The sidebar log itself is display:none
   const logDisplay = await page.evaluate(() =>
     getComputedStyle(document.getElementById('log')).display);
   expect(logDisplay).toBe('none');
@@ -140,14 +165,15 @@ test('desktop: FAB hidden, sidebar log renders', async ({ page }) => {
   await expect(page.locator('#log .log-entry')).toHaveCount(2);
 });
 
-test('short landscape: FAB visible and sheet opens', async ({ page }) => {
+test('short landscape: pill visible in the bottom strip and sheet opens', async ({ page }) => {
   // Phone rotated: height < 560 landscape → sidebar becomes a fixed strip,
-  // #log hidden → the 📜 button must appear too.
+  // #log hidden → the "📜 Game Log" pill must appear in the strip too.
   await page.setViewportSize({ width: 844, height: 390 });
   await page.goto('/');
   await injectCreated(page, makeServerState({ log: ['Game started'] }));
 
-  await expect(page.locator('#log-fab-btn')).toBeVisible();
+  await expect(page.locator('#sidebar #log-fab-btn')).toBeVisible();
+  expect(await page.locator('#header #log-fab-btn').count()).toBe(0);
   await page.click('#log-fab-btn');
   await expect(page.locator('#log-sheet')).toHaveClass(/open/);
   await expect(page.locator('#sheet-log .log-entry')).toHaveCount(1);
