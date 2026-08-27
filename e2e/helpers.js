@@ -30,6 +30,8 @@ export function makeServerState({
   finishedOrder = [],
   names = ['Dodi', 'Bot 2', 'Bot 3', 'Bot 4'],
   threeDiscard = null,
+  round = 1,
+  totalScores = [0, 0, 0, 0],
 } = {}) {
   const hs = hands || [makeHand(13, 0), makeHand(13, 13), makeHand(13, 26), makeHand(13, 39)];
   return {
@@ -48,6 +50,8 @@ export function makeServerState({
     trick: trick || { cards: [], comboType: null, comboPlayer: null, passed: [], played: [] },
     finishedOrder,
     scores,
+    round,
+    totalScores,
     threeDiscard,
     log: [],
   };

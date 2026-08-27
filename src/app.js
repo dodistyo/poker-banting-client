@@ -287,6 +287,8 @@ function adaptState(serverState) {
     }
   }
   adapted.scores = serverState.scores || [0, 0, 0, 0];
+  adapted.totalScores = serverState.totalScores || [0, 0, 0, 0];
+  adapted.round = serverState.round || 1;
   adapted.finishedOrder = serverState.finishedOrder || [];
   adapted.logEntries = serverState.log || [];
   adapted.gameOver = serverState.phase === 'gameOver';
@@ -421,6 +423,7 @@ function renderPartyScreen() {
   const allPlayers = Array.isArray(state.players) ? state.players : Object.values(state.players);
   const seen = new Set();
   const players = allPlayers.filter(p => { if (!p) return false; if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+  const totals = (state.totalScores && state.totalScores.length) ? state.totalScores : [0, 0, 0, 0];
   players.forEach((p, i) => {
     if (!p) return;
     const isBot = p.isBot || !p.connected;
@@ -431,6 +434,9 @@ function renderPartyScreen() {
     const tdName = document.createElement('td');
     tdName.style.padding = '10px 0';
     tdName.textContent = p.name + (p.isCreator ? ' 👑' : '') + (isMe ? ' (You)' : isBot ? ' (Bot)' : '');
+    const tdScore = document.createElement('td');
+    tdScore.style.cssText = 'padding:10px 0;text-align:center;color:#ffd700;font-weight:600;';
+    tdScore.textContent = String(totals[i] != null ? totals[i] : 0);
     const tdStatus = document.createElement('td');
     tdStatus.style.cssText = 'padding:10px 0;text-align:center;';
     const chip = document.createElement('span');
@@ -440,6 +446,7 @@ function renderPartyScreen() {
     chip.textContent = ready ? 'Ready' : 'Not Ready';
     tdStatus.appendChild(chip);
     tr.appendChild(tdName);
+    tr.appendChild(tdScore);
     tr.appendChild(tdStatus);
     tbody.appendChild(tr);
   });
@@ -447,6 +454,11 @@ function renderPartyScreen() {
   const myIdx = players.findIndex(p => p && p.id === playerId);
   const isCreator = myIdx !== -1 && players[myIdx].isCreator;
   const myReady = state.ready && state.ready[myIdx];
+
+  // Multi-round sessions: the header shows the running round number so the
+  // waiting room reads "Round 2 — Waiting" instead of a blank re-lobby.
+  const header = document.querySelector('#lobby-screen-party .lobby-header h3');
+  if (header) header.textContent = (state.round > 1 ? 'Waiting Room — Round ' + state.round + ' Next' : 'Waiting Room');
 
   const readyBtn = document.getElementById('party-ready-btn');
   if (readyBtn) {
@@ -511,15 +523,29 @@ function showGameOver() {
   document.getElementById('winner-text').textContent =
     loser === null ? 'Game Over' : (isHumanLoser ? 'You Lost!' : nameOf(loser) + ' Lost!');
 
+  // Session context: which round just ended and the running total.
+  const round = state.round || 1;
+  const sub = document.getElementById('gameover-round');
+  if (sub) sub.textContent = 'Round ' + round + ' complete';
+
+  const totals = state.totalScores || [0, 0, 0, 0];
   const fs = document.getElementById('final-scores');
   fs.innerHTML = '';
   const medals = ['1st', '2nd', '3rd', 'Last'];
   ranking.forEach((p, idx) => {
     const div = document.createElement('div');
     div.className = 'final-row rank-' + (idx + 1);
-    div.textContent = medals[idx] + ' ' + nameOf(p) + ' (' + (state.scores[p] ?? 0) + ' pts)';
+    // Per-round points first, running total in parentheses.
+    div.textContent = medals[idx] + ' ' + nameOf(p) + ' (' + (state.scores[p] ?? 0) + ' pts)  ·  Total ' + (totals[p] ?? 0);
     fs.appendChild(div);
   });
+
+  const totalRow = document.getElementById('gameover-total');
+  if (totalRow) {
+    totalRow.textContent = 'Session total — ' + state.playerNames
+      .map((n, i) => n + ' ' + (totals[i] ?? 0))
+      .join('  ·  ');
+  }
 
   overlay.classList.add('show');
 }
@@ -695,6 +721,22 @@ export function nextRound() {
   roomCode = null;
   connect(serverUrl, handleMessage, onConnect, onDisconnect);
   document.getElementById('lobby-overlay').style.display = 'flex';
+}
+
+// "Main Lagi": stay in the room — the server already auto-readies everyone,
+// so we just drop the game-over overlay and land on the waiting room. The
+// creator can press Start Game to continue the session (round 2+, no
+// three-discard, cumulative scores).
+export function playAgain() {
+  document.getElementById('gameover-overlay').classList.remove('show');
+  handOrder = null; // fresh deal is coming
+  if (state) {
+    // Show the waiting room (all auto-ready) behind the table.
+    renderPartyScreen();
+    showLobbyScreen('party');
+    const overlay = document.getElementById('lobby-overlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
 }
 
 export function toggleSidebar() {

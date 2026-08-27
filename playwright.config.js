@@ -40,7 +40,10 @@ export default defineConfig({
       url: 'http://localhost:8080/health',
       reuseExistingServer: true,
       cwd: path.resolve(__dirname, '../pocer-server'),
-      env: { RUST_LOG: 'info' },
+      // BOT_TURN_DELAY_MS: the real-server specs (full round vs 3 bots) would
+      // take ~10 min at the default 2.5s delay. 300ms keeps the same code path
+      // but makes the suite finish in seconds. Override with your own value.
+      env: { RUST_LOG: 'info', BOT_TURN_DELAY_MS: process.env.BOT_TURN_DELAY_MS || '300' },
     },
   ],
 });

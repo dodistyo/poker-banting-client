@@ -76,6 +76,8 @@ test('game over: bot loses, human ranked first', async ({ page }) => {
     hands: [[], [], [], [card('3', 'clubs')]],
     scores: [9, 7, 5, 1],
     finishedOrder: [0, 1, 2, 3],
+    round: 1,
+    totalScores: [9, 7, 5, 1],
   }));
 
   await expect(page.locator('#gameover-overlay.show')).toBeVisible();
@@ -85,8 +87,9 @@ test('game over: bot loses, human ranked first', async ({ page }) => {
 
   const rows = page.locator('#final-scores > div');
   await expect(rows).toHaveCount(4);
-  await expect(rows.nth(0)).toHaveText('1st Dodi (9 pts)');
-  await expect(rows.nth(3)).toHaveText('Last Bot 4 (1 pts)');
+  // Round 1: total equals the round score.
+  await expect(rows.nth(0)).toHaveText('1st Dodi (9 pts)  ·  Total 9');
+  await expect(rows.nth(3)).toHaveText('Last Bot 4 (1 pts)  ·  Total 1');
 });
 
 test('game over: human is the loser', async ({ page }) => {
@@ -98,6 +101,8 @@ test('game over: human is the loser', async ({ page }) => {
     hands: [[card('3', 'clubs')], [], [], []],
     scores: [1, 9, 7, 5],
     finishedOrder: [1, 2, 3, 0],
+    round: 1,
+    totalScores: [1, 9, 7, 5],
   }));
 
   await expect(page.locator('#gameover-overlay.show')).toBeVisible();
@@ -105,6 +110,6 @@ test('game over: human is the loser', async ({ page }) => {
   await watch(page); // let the viewer read the result
 
   const rows = page.locator('#final-scores > div');
-  await expect(rows.nth(0)).toHaveText('1st Bot 2 (9 pts)');
-  await expect(rows.nth(3)).toHaveText('Last Dodi (1 pts)');
+  await expect(rows.nth(0)).toHaveText('1st Bot 2 (9 pts)  ·  Total 9');
+  await expect(rows.nth(3)).toHaveText('Last Dodi (1 pts)  ·  Total 1');
 });

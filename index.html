@@ -238,6 +238,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #gameover-overlay button { margin-top: 8px; padding: 12px 36px; background: linear-gradient(180deg, #ee5a6f 0%, #e94560 100%); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; letter-spacing: 0.2px; transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease; box-shadow: 0 4px 16px rgba(233,69,96,0.25); }
 #gameover-overlay button:hover { background: linear-gradient(180deg, #e94560 0%, #d63a54 100%); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(233,69,96,0.35); }
 #gameover-overlay button:active { transform: translateY(0); }
+#gameover-overlay .go-subtitle { color: #aaa; font-size: 13px; margin-top: -8px; margin-bottom: 4px; letter-spacing: 0.5px; }
+#gameover-overlay .go-total { margin: 10px 0 4px; font-size: 12px; color: #8a93a8; line-height: 1.6; word-break: break-word; }
+#gameover-overlay button.go-exit { background: #2a3a5c; box-shadow: none; margin-top: 6px; font-size: 14px; padding: 10px 36px; }
+#gameover-overlay button.go-exit:hover { background: #34456b; transform: none; box-shadow: none; }
 
 /* 3-discard phase overlay */
 #three-phase-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: none; align-items: center; justify-content: center; z-index: 80; }
@@ -816,6 +820,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
         <table id="party-player-list" style="width:100%;border-collapse:collapse;text-align:left;">
           <thead><tr style="border-bottom:1px solid #3a4a6c;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">
             <th style="padding:8px 0;">Username</th>
+            <th style="padding:8px 0;text-align:center;">Score</th>
             <th style="padding:8px 0;text-align:center;">Status</th>
           </tr></thead>
           <tbody></tbody>
@@ -844,8 +849,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 <div id="gameover-overlay">
   <div class="panel">
     <h2 id="winner-text"></h2>
+    <div id="gameover-round" class="go-subtitle"></div>
     <div class="final-scores" id="final-scores"></div>
-    <button onclick="nextRound()">New Game</button>
+    <div id="gameover-total" class="go-total"></div>
+    <button onclick="playAgain()">Main Lagi</button>
+    <button onclick="nextRound()" class="go-exit">Keluar</button>
   </div>
 </div>
 
@@ -893,7 +901,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 </div>
 
 <script type="module">
-import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, passTurn, toggleSidebar, nextRound, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
+import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, selectCard, passTurn, toggleSidebar, nextRound, playAgain, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
 
 console.log('[INIT] Modules loaded successfully');
 
@@ -903,9 +911,11 @@ window.__app_handleJoinRoom = handleJoinRoom;
 window.__app_handleBrowseRooms = handleBrowseRooms;
 window.sortHand = sortHand;
 window.playCards = playCards;
+window.selectCard = selectCard;
 window.passTurn = passTurn;
 window.toggleSidebar = toggleSidebar;
 window.nextRound = nextRound;
+window.playAgain = playAgain;
 
 // Test hooks for Playwright E2E (see e2e/ directory)
 window.__app_getState = getSTATE;
