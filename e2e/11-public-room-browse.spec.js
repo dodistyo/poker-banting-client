@@ -1,8 +1,12 @@
 // Public room browse + join over the REAL Rust server.
 //
-// The bug this guards: the client's dev proxy strips the /api prefix before
-// forwarding, so the server route had to be /rooms (not /api/rooms). A wrong
-// route makes /api/rooms 404 -> the Browse list silently renders empty.
+// Browse is a dedicated lobby screen (same navigation pattern as New Game /
+// Join Game — a back icon, not the main menu), so this test also guards the
+// screen switching: main -> browse -> join.
+//
+// The server route is /rooms (no /api prefix): the client's dev proxy strips
+// the /api prefix before forwarding, so /api/rooms 404s and the list renders
+// empty.
 //
 // Flow: profile A creates a PUBLIC room via the UI (public toggle on). A
 // fresh profile B opens the app, hits "Browse Public Rooms", sees A's room
@@ -34,11 +38,13 @@ test('browse public rooms shows a created room, and join works', async ({ browse
   const code = await createPublicRoom(pageA, 'Dodi');
   expect(code).toMatch(/^[A-Z0-9]{6}$/);
 
-  // --- B (fresh profile) browses and must SEE A's room ---
+  // --- B (fresh profile) opens the dedicated browse screen ---
   await pageB.goto('/');
   await waitForConnected(pageB);
-  // "Browse Public Rooms" triggers a live listRooms() fetch.
+  // "Browse Public Rooms" switches to the browse screen AND fetches live.
   await pageB.locator('li', { hasText: 'Browse Public Rooms' }).click();
+  await expect(pageB.locator('#lobby-screen-browse')).toHaveClass(/active/);
+  await expect(pageB.locator('#lobby-screen-main')).not.toHaveClass(/active/);
 
   // A's room appears with its code, hosted by Dodi.
   const roomRow = pageB.locator('#lobby-room-list .room-item', { hasText: code });

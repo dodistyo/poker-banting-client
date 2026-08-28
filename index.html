@@ -856,11 +856,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
         <li onclick="window.__app_showScreen('join')"><a>Join Game</a></li>
         <li onclick="window.__app_handleBrowseRooms()"><a>Browse Public Rooms</a></li>
       </ul>
-      <div class="room-list-head" id="lobby-room-list-head" style="display:none;">
-        <span class="room-list-title">Public Rooms</span>
-        <button class="room-refresh-btn" onclick="window.__app_refreshRoomList()">&#10227; Refresh</button>
-      </div>
-      <div id="lobby-room-list"></div>
     </div>
 
     <!-- NEW GAME SCREEN -->
@@ -899,6 +894,19 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
         <div class="lobby-field-error" id="lobby-code-error"></div>
       </div>
       <button class="lobby-submit-btn" onclick="window.__app_handleJoinRoom()">Join</button>
+    </div>
+
+    <!-- BROWSE PUBLIC ROOMS SCREEN -->
+    <div id="lobby-screen-browse" class="lobby-screen">
+      <div class="lobby-header">
+        <span class="lobby-back-icon" onclick="window.__app_showScreen('main')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></span>
+        <h3>Public Rooms</h3>
+      </div>
+      <div class="room-list-head">
+        <span class="room-list-title">Tap a room to join</span>
+        <button class="room-refresh-btn" onclick="window.__app_refreshRoomList()">&#10227; Refresh</button>
+      </div>
+      <div id="lobby-room-list"></div>
     </div>
 
     <!-- PARTY SCREEN (room lobby) -->

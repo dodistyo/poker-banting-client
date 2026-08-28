@@ -391,15 +391,11 @@ function showLobby() {
     showLobbyScreen('party');
   } else {
     showLobbyScreen('main');
-    // Back at the main menu (not in a room): refresh the public room list
-    // so it reflects the current state (a room we just left may be orphaned,
-    // others may have filled/emptied).
-    refreshRoomList();
   }
 }
 
 export function showLobbyScreen(screen) {
-  const screens = ['main', 'new', 'join', 'party'];
+  const screens = ['main', 'new', 'join', 'browse', 'party'];
   screens.forEach(s => {
     const el = document.getElementById('lobby-screen-' + s);
     if (el) el.classList.toggle('active', s === screen);
@@ -625,8 +621,8 @@ export function handleJoinRoom() {
 }
 
 export function handleBrowseRooms() {
-  showLobbyScreen('main');
-  refreshRoomList();
+  showLobbyScreen('browse');
+  listRooms();
 }
 
 export function refreshRoomList() {
@@ -642,8 +638,6 @@ export function handleJoinFromList(code) {
 function renderRoomList(rooms) {
   const container = document.getElementById('lobby-room-list');
   if (!container) return;
-  const head = document.getElementById('lobby-room-list-head');
-  if (head) head.style.display = 'flex';
   container.innerHTML = '';
   const visible = rooms.filter(r => r.players > 0);
   if (visible.length === 0) {
