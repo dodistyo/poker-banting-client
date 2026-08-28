@@ -425,9 +425,10 @@ export function renderThreePhaseOverlay(state) {
     } else {
       const emptyEl = document.createElement('span');
       emptyEl.style.cssText = 'color:#666;font-size:12px;';
-      // Card faces of opponents are private, but the *count* of their 3s is
-      // public (drives the public discard order) — the server sends it via
-      // threeDiscard.playerCounts. Show "N 3s" when known, else "no 3s".
+      // The 3s themselves are public during the discard phase (removed from
+      // all hands up front, never re-enter play), so normally the real cards
+      // render above. This branch only hits when the server omits a player's
+      // 3s — fall back to the public count via threeDiscard.playerCounts.
       const cnt = threePhaseCounts ? (threePhaseCounts[i] || 0) : 0;
       emptyEl.textContent = cnt > 0 ? (cnt + (cnt === 1 ? ' 3' : ' 3s')) : 'no 3s';
       cardsDiv.appendChild(emptyEl);
