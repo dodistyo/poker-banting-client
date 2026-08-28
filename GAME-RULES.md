@@ -1,6 +1,6 @@
 # Pocer — Game Rules
 
-A multiplayer card game based on Capsa Banting (3D), implemented as a WebSocket server (Rust) + browser client (vanilla JS).
+A multiplayer card game based on Poker Banting (3D), implemented as a WebSocket server (Rust) + browser client (vanilla JS).
 
 ## Overview
 

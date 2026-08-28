@@ -263,7 +263,7 @@ function adaptState(serverState) {
   adapted.playerNames = serverState.players.map(p => p.name);
   adapted.isHuman = serverState.players.map(p => !p.isBot && p.connected);
   // Public hand counts. The server masks other players' `hand` to [] but keeps
-  // `handCount` (how many cards they still hold) public — Capsa is played with
+  // `handCount` (how many cards they still hold) public — Poker Banting is
   // open information about how many cards remain. We render that many face-down
   // cards per opponent instead of the (empty) masked hand.
   adapted.handCounts = serverState.players.map(p =>

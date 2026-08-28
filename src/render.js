@@ -255,8 +255,8 @@ export function render(state) {
 
     // What we actually render in this seat. For opponents the masked hand is
     // empty, so instead we synthesize `publicCount` face-down placeholders —
-    // the number of cards an opponent still holds is public in Capsa. Side
-    // seats cap at 3 (deck fan; the badge carries the exact count), the top
+    // the number of cards an opponent still holds is public in Poker Banting.
+    // Side seats cap at 3 (deck fan; the badge carries the exact count), the top
     // seat shows the full strip.
     const sideCap = 3;
     const backCount = hideCards ? (isSideSeat ? Math.min(sideCap, publicCount) : publicCount) : 0;

@@ -2,7 +2,7 @@
   "name": "pocer",
   "version": "1.0.0",
   "type": "module",
-  "description": "Capsa Banting card game",
+  "description": "Poker Banting card game",
   "scripts": {
     "test": "node test/network.test.js && node test/render.test.js"
   },

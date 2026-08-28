@@ -1,4 +1,4 @@
-# Pocer — Capsa Banting Card Game
+# Pocer — Poker Banting Card Game
 
 ## Structure
 
@@ -25,7 +25,7 @@ node trick-reset-test.js # sequential trick wins, no-undefined check
 
 Tests use Node's built-in `assert` module. No test framework installed.
 
-## Game Rules (Capsa Banting / 3D)
+## Game Rules (Poker Banting / 3D)
 
 - 4 players (1 human + 3 AI bots), standard 52-card deck, 13 cards each
 - Rank order: 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 2
