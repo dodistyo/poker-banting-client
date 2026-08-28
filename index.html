@@ -70,6 +70,12 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #lobby-room-list .room-name { font-size: 14px; color: #fff; font-weight: 600; }
 #lobby-room-list .room-players { font-size: 12px; color: #aaa; }
 #lobby-room-list .room-join-btn { padding: 4px 12px; background: #e94560; color: #fff; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
+#lobby-room-list .room-join-btn:disabled { background: #3a4658; color: #8a97a8; cursor: default; }
+.room-list-head { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 4px; }
+.room-list-title { font-size: 12px; color: #8a97a8; text-transform: uppercase; letter-spacing: 1px; }
+.room-refresh-btn { background: #0f3460; color: #cfd8e3; border: 1px solid #264a73; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.room-refresh-btn:hover { background: #1a4a7a; }
+#lobby-room-list .room-list-empty { color: #8a97a8; font-size: 13px; padding: 8px 2px; }
 
 /* Connection status */
 #connection-status { font-size: 10px; padding: 2px 10px; border-radius: 8px; position: absolute; left: 50%; transform: translateX(-50%); }
@@ -526,7 +532,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #error-msg { font-size: 10px; }
 
   /* Overlays */
-  #lobby-overlay .panel { padding: 24px; margin: 0 12px; min-width: auto; max-width: 95vw; }
+  #lobby-overlay .panel { padding: 24px; margin: 0 12px; min-width: auto; max-width: 95vw; max-height: calc(100vh - 24px); overflow-y: auto; }
   .lobby-menu a { padding: 12px 16px; font-size: 14px; }
   #lobby-overlay .lobby-submit-btn { padding: 12px 16px; font-size: 14px; margin: 16px 0 0; }
   #gameover-overlay .panel { padding: 24px; margin: 0 12px; }
@@ -717,7 +723,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #combo-preview { font-size: 10px; }
   #error-msg { font-size: 10px; }
 
-  #lobby-overlay .panel { padding: 20px; margin: 0 12px; min-width: auto; max-width: 95vw; }
+  #lobby-overlay .panel { padding: 20px; margin: 0 12px; min-width: auto; max-width: 95vw; max-height: calc(100vh - 24px); overflow-y: auto; }
   .lobby-menu a { padding: 10px 12px; font-size: 13px; }
   #lobby-overlay .lobby-submit-btn { padding: 12px 16px; font-size: 14px; margin: 16px 0 0; }
   #gameover-overlay .panel { padding: 20px; margin: 0 12px; }
@@ -850,6 +856,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
         <li onclick="window.__app_showScreen('join')"><a>Join Game</a></li>
         <li onclick="window.__app_handleBrowseRooms()"><a>Browse Public Rooms</a></li>
       </ul>
+      <div class="room-list-head" id="lobby-room-list-head" style="display:none;">
+        <span class="room-list-title">Public Rooms</span>
+        <button class="room-refresh-btn" onclick="window.__app_refreshRoomList()">&#10227; Refresh</button>
+      </div>
       <div id="lobby-room-list"></div>
     </div>
 
@@ -1003,7 +1013,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 <div id="sheet-backdrop" onclick="closeLogSheet()"></div>
 
 <script type="module">
-import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, sortHand, playCards, selectCard, passTurn, toggleSidebar, nextRound, playAgain, openLogSheet, closeLogSheet, toggleLogSheet, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
+import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, refreshRoomList, sortHand, playCards, selectCard, passTurn, toggleSidebar, nextRound, playAgain, openLogSheet, closeLogSheet, toggleLogSheet, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
 
 console.log('[INIT] Modules loaded successfully');
 
@@ -1011,6 +1021,7 @@ window.__app_showScreen = showLobbyScreen;
 window.__app_handleCreateRoom = handleCreateRoom;
 window.__app_handleJoinRoom = handleJoinRoom;
 window.__app_handleBrowseRooms = handleBrowseRooms;
+window.__app_refreshRoomList = refreshRoomList;
 window.sortHand = sortHand;
 window.playCards = playCards;
 window.selectCard = selectCard;

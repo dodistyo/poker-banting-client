@@ -183,9 +183,14 @@ function handleMessage(msg) {
       render(state);
       break;
 
-    case 'roomList':
-      renderRoomList(msg.rooms || []);
+    case 'roomList': {
+      // fetchAsMessage puts the payload in msg.data; the server returns a
+      // bare array of room summaries. (msg.rooms only appears on the
+      // fetch-failure fallback path.)
+      const rooms = Array.isArray(msg.data) ? msg.data : (msg.data?.rooms || msg.rooms || []);
+      renderRoomList(rooms);
       break;
+    }
 
     case 'state':
       state = adaptState(msg.state);
@@ -386,6 +391,10 @@ function showLobby() {
     showLobbyScreen('party');
   } else {
     showLobbyScreen('main');
+    // Back at the main menu (not in a room): refresh the public room list
+    // so it reflects the current state (a room we just left may be orphaned,
+    // others may have filled/emptied).
+    refreshRoomList();
   }
 }
 
@@ -616,6 +625,11 @@ export function handleJoinRoom() {
 }
 
 export function handleBrowseRooms() {
+  showLobbyScreen('main');
+  refreshRoomList();
+}
+
+export function refreshRoomList() {
   listRooms();
 }
 
@@ -628,24 +642,32 @@ export function handleJoinFromList(code) {
 function renderRoomList(rooms) {
   const container = document.getElementById('lobby-room-list');
   if (!container) return;
+  const head = document.getElementById('lobby-room-list-head');
+  if (head) head.style.display = 'flex';
   container.innerHTML = '';
-  if (rooms.length === 0) {
-    container.style.display = 'none';
+  const visible = rooms.filter(r => r.players > 0);
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'room-list-empty';
+    empty.textContent = 'No public rooms right now — create one!';
+    container.appendChild(empty);
     return;
   }
-  container.style.display = 'block';
-  rooms.filter(r => r.players > 0).forEach(room => {
+  visible.forEach(room => {
     const div = document.createElement('div');
     div.className = 'room-item';
+    const full = room.players >= room.max_players;
     div.innerHTML = `
       <div class="room-info">
-        <div class="room-name">${room.name}</div>
-        <div class="room-players">${room.players}/4 players · ${room.code}</div>
+        <div class="room-name">${room.host}</div>
+        <div class="room-players">${room.players}/${room.max_players} players · ${room.code}</div>
       </div>
-      <button class="room-join-btn">Join</button>
+      <button class="room-join-btn" ${full ? 'disabled' : ''}>${full ? 'Full' : 'Join'}</button>
     `;
-    div.querySelector('.room-join-btn').onclick = () => handleJoinFromList(room.code);
-    div.querySelector('.room-info').onclick = () => handleJoinFromList(room.code);
+    if (!full) {
+      div.querySelector('.room-join-btn').onclick = () => handleJoinFromList(room.code);
+      div.querySelector('.room-info').onclick = () => handleJoinFromList(room.code);
+    }
     container.appendChild(div);
   });
 }
