@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SERVER_BIN = path.resolve(__dirname, '../pocer-server/target/debug/pocer-server');
+const SERVER_BIN = path.resolve(__dirname, '../poker-banting-server/target/debug/poker-banting-server');
 
 // Opt-in slow mode for watching a headed run: E2E_SLOW=1 npx playwright test
 // (or `make e2e-slow`). Off by default so normal runs stay fast.
@@ -39,7 +39,7 @@ export default defineConfig({
       command: `${SERVER_BIN}`,
       url: 'http://localhost:8080/health',
       reuseExistingServer: true,
-      cwd: path.resolve(__dirname, '../pocer-server'),
+      cwd: path.resolve(__dirname, '../poker-banting-server'),
       // BOT_TURN_DELAY_MS: the real-server specs (full round vs 3 bots) would
       // take ~10 min at the default 2.5s delay. 300ms keeps the same code path
       // but makes the suite finish in seconds. Override with your own value.
