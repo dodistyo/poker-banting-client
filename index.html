@@ -162,6 +162,12 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* Cards */
 .card { width: 40px; height: 56px; border-radius: 5px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; cursor: pointer; border: 2px solid #ccc; user-select: none; transition: transform 0.15s, box-shadow 0.15s; position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; margin-left: -10px; }
+/* The bottom seat is always the human's own hand, and every gesture there is
+   handled in JS (tap, swipe-up select, drag-to-center play, drag-to-card
+   manual sort). 'none' (read by the browser before the gesture starts, unlike
+   the JS-side setting in pointerdown) stops touch scroll/pinch from stealing
+   the swipe — the hand is JS-scaled to fit, so it never needs to scroll. */
+.hand-bottom .card { touch-action: none; }
 .card.red { color: #e74c3c; }
 .card.black { color: #2c3e50; }
 .card.red { color: #d32f2f; }
@@ -174,6 +180,22 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .card.drag-target { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,0.5); transform: scale(1.05); transition: transform 0.15s, box-shadow 0.15s; }
 .card.drag-follower { position: fixed; z-index: 9999; pointer-events: none; transform: translate(-50%, -50%) rotate(-3deg) scale(1.1); box-shadow: 0 12px 32px rgba(0,0,0,0.5); transition: none; }
 .card.tapped { animation: cardTap 0.2s ease; }
+
+/* Center trick area: always a stable, sized drop target for the
+   "drag & drop to play" gesture (drag a card here to play it). */
+#center-cards { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; min-height: 48px; min-width: 90px; }
+/* The drop zone lights up on your turn, and glows while a card is held over it. */
+#center-cards.play-dropzone { outline: 2px dashed rgba(255,215,0,0.30); outline-offset: 8px; border-radius: 10px; transition: outline-color 0.15s; }
+#center-cards.play-drop-active { outline: 2px dashed #ffd700; outline-offset: 8px; border-radius: 10px; box-shadow: 0 0 0 4px rgba(255,215,0,0.16), inset 0 0 28px rgba(255,215,0,0.14); }
+/* Touch-gesture cheat line (touch devices only): shown while it's your turn
+   so the three gestures are discoverable. flex-basis:100% wraps it to its own
+   row under the combo/error line instead of fighting for width. A portrait
+   phone is narrow (max-width) and a landscape phone is short (max-height);
+   both are touch. Desktop (wide AND tall) keeps it hidden. */
+#gesture-hint { display: none; flex-basis: 100%; color: #cfd8e3; font-size: 10px; opacity: 0.85; text-align: center; line-height: 1.3; }
+@media (max-width: 768px), (max-height: 500px) {
+  #gesture-hint { display: block; }
+}
 @keyframes cardTap {
   0% { transform: scale(1); }
   50% { transform: scale(0.92); }
@@ -199,7 +221,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 /* Action bar — buttons only. The combo preview + error text live in
    #turn-hint in the table center (see #center-area), same as mobile, so
    this bar never changes width when text appears/disappears (no jitter). */
-#turn-hint { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 0; }
+#turn-hint { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 0; }
 #turn-hint:not(:has(span:not(:empty))) { display: none; }
 #action-bar-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 #action-bar button { padding: 6px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
@@ -987,6 +1009,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <div id="turn-hint">
         <span id="combo-preview"></span>
         <span id="error-msg"></span>
+        <span id="gesture-hint">Tap or swipe ↑ to select · drag a card here to play · drag onto a card to sort</span>
       </div>
     </div>
 

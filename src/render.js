@@ -39,6 +39,12 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
         cardEl.onpointerdown = (e) => {
           if (e.button !== 0) return;
           e.preventDefault();
+          // Own cards handle every gesture in JS (tap, swipe-up select, drag
+          // to center = play, drag on a card = manual sort). 'pan-x' would let
+          // the browser steal vertical swipes into page scrolling, so claim
+          // all pointer deltas — pointercancel still fires if the OS takes the
+          // touch away and cleans the drag up.
+          cardEl.style.touchAction = 'none';
           cardEl._dragged = false;
           const start = { x: e.clientX, y: e.clientY };
           const fromIdx = parseInt(cardEl.dataset.idx);
@@ -55,6 +61,13 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
           cardEl.classList.add('drag-placeholder');
 
           let targetIdx = -1;
+          const dropZone = document.getElementById('center-cards');
+          const swipeMin = Math.max(16, Math.round(rect.height * 0.45));
+
+          const clearHighlights = () => {
+            document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+            if (dropZone) dropZone.classList.remove('play-drop-active');
+          };
 
           const onMove = (ev) => {
             const dx = ev.clientX - start.x;
@@ -63,9 +76,14 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
             follower.style.left = ev.clientX + 'px';
             follower.style.top = ev.clientY + 'px';
 
-            document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+            clearHighlights();
             const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
             if (elUnder) {
+              const overDrop = elUnder.closest ? elUnder.closest('#center-cards') : null;
+              if (overDrop) {
+                if (dropZone) dropZone.classList.add('play-drop-active');
+                return;
+              }
               const targetEl = elUnder.closest('.hand-bottom .card[data-idx]');
               if (targetEl && targetEl !== cardEl) {
                 targetEl.classList.add('drag-target');
@@ -81,9 +99,30 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
             document.removeEventListener('pointerup', onUp);
             follower.remove();
             cardEl.classList.remove('drag-placeholder');
-            document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+            clearHighlights();
 
-            if (cardEl._dragged && targetIdx >= 0 && targetIdx !== fromIdx) {
+            if (!cardEl._dragged) return; // plain tap -> onclick handles select
+
+            const dx = ev.clientX - start.x;
+            const dy = ev.clientY - start.y;
+            const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
+            const overDrop = elUnder && elUnder.closest ? elUnder.closest('#center-cards') : null;
+
+            // 1) Dropped on the center play zone -> drag & drop to play.
+            if (overDrop) {
+              if (state.dragToPlay) state.dragToPlay(playerIdx, fromIdx);
+              return;
+            }
+
+            // 2) Mostly-vertical upward swipe -> activate (select) the card.
+            if (dy < -swipeMin && Math.abs(dx) < Math.abs(dy) * 0.6) {
+              if (navigator.vibrate) navigator.vibrate(10);
+              state.selectCard(playerIdx, fromIdx);
+              return;
+            }
+
+            // 3) Dropped on another hand card -> manual sort (reorder).
+            if (targetIdx >= 0 && targetIdx !== fromIdx) {
               let adjTarget = targetIdx;
               if (fromIdx < targetIdx) adjTarget = targetIdx - 1;
               const hands = state.hands;
@@ -98,6 +137,13 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
 
           document.addEventListener('pointermove', onMove);
           document.addEventListener('pointerup', onUp);
+          cardEl.addEventListener('pointercancel', () => {
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            follower.remove();
+            cardEl.classList.remove('drag-placeholder');
+            clearHighlights();
+          }, { once: true });
         };
       }
     }
@@ -360,6 +406,17 @@ function renderActionBar(state) {
   const playerId = state._playerId;
   const isMyTurn = playerId !== null && state.currentPlayer === playerId && !state.gameOver && !state.threePhase;
   const gameStarted = state.phase && state.phase !== 'lobby';
+
+  // The center trick area doubles as a drag-to-play drop zone; only show it
+  // as a target when it can actually accept a card (your turn, playing).
+  const dropZone = document.getElementById('center-cards');
+  if (dropZone) dropZone.classList.toggle('play-dropzone', isMyTurn && gameStarted);
+
+  // Gesture hint (mobile only, CSS): shown while it's your turn so the three
+  // touch gestures are discoverable; hidden otherwise (also by CSS on
+  // desktop, where the mouse makes them optional).
+  const gestureHint = document.getElementById('gesture-hint');
+  if (gestureHint) gestureHint.style.display = (isMyTurn && gameStarted) ? '' : 'none';
 
   if (state.gameOver || !isMyTurn || !gameStarted) {
     actionBar.classList.remove('visible');

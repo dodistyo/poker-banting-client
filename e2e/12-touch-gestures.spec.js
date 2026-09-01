@@ -1,0 +1,198 @@
+// Mobile touch-gesture interactions for the human hand (bottom seat):
+//  - tap selects / deselects a card (existing, regression under the new handler)
+//  - swipe UP on a card = activate (select) it
+//  - drag a card onto the center trick area = play it (drag & drop to play)
+//  - drag a card onto another hand card = manual sort (regression, 07 too)
+//
+// All states are injected (helpers.js) so bot timing never interferes. For
+// drag-to-play we spy on WebSocket.prototype.send to assert the exact play
+// message the gesture produced (the injected room doesn't exist on the real
+// server, so we verify the outgoing message, not a server echo).
+import { test, expect } from '@playwright/test';
+import {
+  makeServerState, makeHand, injectCreated, waitForPhase, watch,
+} from './helpers.js';
+
+const hands = [
+  makeHand(13, 0),
+  makeHand(13, 13),
+  makeHand(13, 26),
+  makeHand(13, 39),
+];
+
+async function startTurn(page, serverState = makeServerState({ currentPlayer: 0, hands })) {
+  await page.goto('/');
+  await injectCreated(page, serverState);
+  await waitForPhase(page, 'playing');
+  await watch(page);
+}
+
+/** Record every outgoing WS message (JSON-parsed) on window.__sent. */
+async function trackSends(page) {
+  await page.evaluate(() => {
+    window.__sent = [];
+    const orig = WebSocket.prototype.send;
+    WebSocket.prototype.send = function (data) {
+      try { window.__sent.push(JSON.parse(data)); } catch { /* keep raw */ }
+      return orig.call(this, data);
+    };
+  });
+}
+
+const sentPlays = (page) =>
+  page.evaluate(() => (window.__sent || []).filter(m => m && m.type === 'play'));
+
+// Center of a card's bounding box.
+async function cardCenter(page, idx) {
+  const box = await page.locator('#hand-0 .card').nth(idx).boundingBox();
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test('tap on own card still selects it (regression under the gesture handler)', async ({ page }) => {
+  await startTurn(page);
+  await page.locator('#hand-0 .card').first().click();
+  await expect(page.locator('#hand-0 .card').first()).toHaveClass(/selected/);
+  await expect(page.locator('#btn-play')).toBeEnabled();
+  await expect(page.locator('#combo-preview')).not.toHaveText('');
+  // Tap again -> deselect
+  await page.locator('#hand-0 .card').first().click();
+  await expect(page.locator('#hand-0 .card').first()).not.toHaveClass(/selected/);
+});
+
+test('swipe up on a card activates (selects) it', async ({ page }) => {
+  await startTurn(page);
+  const c = await cardCenter(page, 2);
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  // Upward swipe: a few intermediate moves, ending well above the start.
+  await page.mouse.move(c.x, c.y - 20, { steps: 2 });
+  await page.mouse.move(c.x, c.y - 50, { steps: 3 });
+  await page.mouse.up();
+  await watch(page);
+  await expect(page.locator('#hand-0 .card').nth(2)).toHaveClass(/selected/);
+  await expect(page.locator('#btn-play')).toBeEnabled();
+  await expect(page.locator('#combo-preview')).not.toHaveText('');
+});
+
+test('swipe down and sideways flicks do NOT select (no false positives)', async ({ page }) => {
+  await startTurn(page);
+  // Swipe DOWN from card 3.
+  const down = await cardCenter(page, 3);
+  await page.mouse.move(down.x, down.y);
+  await page.mouse.down();
+  await page.mouse.move(down.x, down.y + 30, { steps: 2 });
+  await page.mouse.move(down.x, down.y + 55, { steps: 3 });
+  await page.mouse.up();
+  await expect(page.locator('#hand-0 .card').nth(3)).not.toHaveClass(/selected/);
+
+  // Sideways flick off the LAST card (released over empty space, so it can't
+  // be read as a drop-on-card manual sort).
+  const last = await cardCenter(page, 12);
+  await page.mouse.move(last.x, last.y);
+  await page.mouse.down();
+  await page.mouse.move(last.x + 40, last.y + 2, { steps: 3 });
+  await page.mouse.move(last.x + 90, last.y + 4, { steps: 3 });
+  await page.mouse.up();
+  await expect(page.locator('#hand-0 .card').nth(12)).not.toHaveClass(/selected/);
+  // Nothing selected at all -> Play stays disabled.
+  await expect(page.locator('#btn-play')).toBeDisabled();
+});
+
+test('drag a card onto the center trick area plays it (drag & drop to play)', async ({ page }) => {
+  await startTurn(page);
+  await trackSends(page);
+
+  const from = await cardCenter(page, 0);
+  const zone = await page.locator('#center-cards').boundingBox();
+  const to = { x: zone.x + zone.width / 2, y: zone.y + zone.height / 2 };
+
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x, from.y - 24, { steps: 3 });
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 5 });
+  await page.mouse.move(to.x, to.y, { steps: 5 });
+  await page.mouse.up();
+  await watch(page);
+
+  // The gesture sent exactly the dragged card (3♠ = first card of makeHand).
+  const plays = await sentPlays(page);
+  expect(plays).toHaveLength(1);
+  expect(plays[0].cards).toEqual(['3:spades']);
+});
+
+test('drop zone highlights on your turn and while a card is held over it', async ({ page }) => {
+  await startTurn(page);
+  // My turn -> armed drop zone.
+  await expect(page.locator('#center-cards')).toHaveClass(/play-dropzone/);
+
+  const from = await cardCenter(page, 0);
+  const zone = await page.locator('#center-cards').boundingBox();
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x, from.y - 24, { steps: 3 });
+  await page.mouse.move(zone.x + zone.width / 2, zone.y + zone.height / 2, { steps: 5 });
+  // Held over the zone -> active glow while deciding where to drop.
+  await expect(page.locator('#center-cards')).toHaveClass(/play-drop-active/);
+  await page.mouse.up();
+  // Released -> glow gone (the play itself is fine; we assert the highlight).
+  await expect(page.locator('#center-cards')).not.toHaveClass(/play-drop-active/);
+});
+
+test('dropping an invalid card on the center shows the reason and plays nothing', async ({ page }) => {
+  // Table has a Pair (K♠ Q♥ by bot 1); a single low card cannot beat it.
+  const ss = makeServerState({
+    currentPlayer: 0,
+    hands,
+    trick: {
+      cards: [
+        { rank: 'K', suit: 'spades' },
+        { rank: 'Q', suit: 'hearts' },
+      ],
+      comboType: 'pair',
+      comboPlayer: 1,
+      passed: [],
+      played: [1],
+    },
+  });
+  await startTurn(page, ss);
+  await trackSends(page);
+
+  const from = await cardCenter(page, 0); // 3♠
+  const zone = await page.locator('#center-cards').boundingBox();
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x, from.y - 24, { steps: 3 });
+  await page.mouse.move(zone.x + zone.width / 2, zone.y + zone.height / 2, { steps: 5 });
+  await page.mouse.up();
+
+  // Error surfaced in the table-center hint; no play message went out.
+  await expect(page.locator('#error-msg')).toContainText('Must match');
+  expect(await sentPlays(page)).toHaveLength(0);
+});
+
+test('mobile viewport: gestures armed + hint visible on your turn', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 }); // phone portrait
+  await startTurn(page);
+
+  // Gesture cheat line visible on mobile while it's the human's turn.
+  const hint = page.locator('#gesture-hint');
+  await expect(hint).toBeVisible();
+  await expect(page.locator('#center-cards')).toHaveClass(/play-dropzone/);
+
+  // Swipe-up works on mobile sizes too (cards are JS-scaled, ~20px tall).
+  const c = await cardCenter(page, 1);
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  await page.mouse.move(c.x, c.y - 18, { steps: 2 });
+  await page.mouse.move(c.x, c.y - 40, { steps: 3 });
+  await page.mouse.up();
+  await expect(page.locator('#hand-0 .card').nth(1)).toHaveClass(/selected/);
+
+  // Gesture hint hides on the bot's turn.
+  await page.evaluate((s) => window.__app_injectMessage({
+    type: 'state',
+    state: s,
+  }), makeServerState({ currentPlayer: 1, hands }));
+  await expect(hint).toBeHidden();
+  await expect(page.locator('#center-cards')).not.toHaveClass(/play-dropzone/);
+});

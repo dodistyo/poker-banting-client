@@ -330,6 +330,9 @@ function adaptState(serverState) {
 
   adapted.selectCard = (pi, ci) => selectCard(pi, ci);
   adapted.updatePlayButton = () => updatePlayButton();
+  // Drag & drop to play: the render layer calls this when a card is dropped on
+  // the center trick area.
+  adapted.dragToPlay = (pi, ci) => dragPlay(pi, ci);
   // A manual drag reorder is the user's explicit intent and becomes the new
   // sticky order (supersedes a prior Sort) so it isn't reverted on the next
   // state rebuild.
@@ -708,6 +711,33 @@ export function playCards() {
   // Send card identifiers (rank:suit) instead of indices to avoid sort-order mismatch
   const identifiers = selected.map(c => c.rank + ':' + c.suit);
   sendPlay(identifiers);
+}
+
+// Drag & drop to play: dropping a hand card on the center trick area plays
+// exactly that card — the classic one-gesture play. It mirrors playCards()
+// validation: a single card (or a pair: the dropped card + one already
+// selected) that beats or leads the table. Anything else shows the reason
+// instead of playing, so a failed drag never silently does nothing.
+export function dragPlay(playerIdx, cardIdx) {
+  if (navigator.vibrate) navigator.vibrate(15);
+  if (!state || state.gameOver || state.threePhase) return;
+  if (playerId === null || state.currentPlayer !== playerId) return;
+  if (playerIdx !== playerId) return;
+
+  const hand = state.hands[playerIdx] || [];
+  const card = hand[cardIdx];
+  if (!card) return;
+
+  const others = hand.filter((c, i) => i !== cardIdx && c.selected);
+  const selection = card.selected ? others : [card, ...others];
+  const validation = validatePlay(selection, state.trick.combo);
+
+  if (!validation.valid) {
+    showError(validation.error || 'Invalid play');
+    return;
+  }
+
+  sendPlay(selection.map(c => c.rank + ':' + c.suit));
 }
 
 export function passTurn() {
