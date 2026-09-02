@@ -166,6 +166,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .hand-left .card .rank, .hand-left .card .suit,
 .hand-right .card .rank, .hand-right .card .suit { display: none; }
 .hand-right .card.face-down::after { transform: rotate(180deg); }
+/* Opponent fans: JS (layoutOppFan in render.js) absolutely positions every
+   card in the top/left/right seats with inline left/top/width/height/
+   transform, sized to the seat box. position:relative makes the hand box
+   the containing block; margin:0 kills the old flex-strip overlap margins
+   (the media queries below re-declare them for the no-JS fallback). */
+.hand-top, .hand-left, .hand-right { position: relative; overflow: visible; }
+.hand-top .card, .hand-left .card, .hand-right .card { position: absolute; margin: 0; }
 
 /* Cards */
 /* Base 44x62: fallback sizes. The human hand fan always gets inline

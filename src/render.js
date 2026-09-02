@@ -271,11 +271,6 @@ export function render(state) {
     area.classList.toggle('active-player', isActive);
 
     const handClass = pos === 2 ? 'hand-top' : pos === 3 ? 'hand-left' : pos === 1 ? 'hand-right' : 'hand-bottom';
-    // Side seats are narrow columns (28-48px). A 13-card strip overflows and
-    // forces scrollbars/microscopic cards, so they render a compact 3-card
-    // deck fan and the full count lives in a badge. The top seat is wide
-    // enough to show the full strip of backs.
-    const isSideSeat = pos === 1 || pos === 3;
 
     // Update or create player-label
     let labelEl = area.querySelector('.player-label');
@@ -322,10 +317,9 @@ export function render(state) {
     // What we actually render in this seat. For opponents the masked hand is
     // empty, so instead we synthesize `publicCount` face-down placeholders —
     // the number of cards an opponent still holds is public in Poker Banting.
-    // Side seats cap at 3 (deck fan; the badge carries the exact count), the top
-    // seat shows the full strip.
-    const sideCap = 3;
-    const backCount = hideCards ? (isSideSeat ? Math.min(sideCap, publicCount) : publicCount) : 0;
+    // Every opponent seat shows its FULL count (stacked fan; layoutOppFan
+    // sizes them to fit the seat at any resolution).
+    const backCount = hideCards ? publicCount : 0;
     const renderCards = hideCards
       ? Array.from({ length: backCount }, (_, b) => ({ backKey: 'back-' + i + '-' + b }))
       : hand;
@@ -605,6 +599,13 @@ function performHandSizing() {
   tableArea.style.paddingBottom = isMobile ? (clearance + 'px') : '';
 
   layoutBottomFan();
+
+  // Opponent seats: fan out the FULL face-down count. Top seat = horizontal
+  // fan bowing toward the table; side seats = vertical fans whose center card
+  // reaches furthest toward the table center.
+  layoutOppFan(document.getElementById('player-2'), 2);
+  layoutOppFan(document.getElementById('player-3'), 3);
+  layoutOppFan(document.getElementById('player-1'), 1);
 }
 
 // Lay the human's own hand (bottom seat) out as a FAN: every card is
@@ -682,6 +683,115 @@ function layoutBottomFan() {
   // (CSS `.hand-bottom[data-ready] .card`) from the NEXT render onward, so
   // the initial deal snaps into place instead of animating from (0,0).
   handEl.setAttribute('data-ready', '1');
+}
+
+// Opponent seat fan: the top/left/right seats render their FULL face-down
+// count as a compact stacked fan (same "holding cards" arc as the bottom
+// hand, sized to the seat box instead of the viewport).
+//   top (pos 2)   : horizontal fan, pivot ABOVE the hand → center card bows
+//                   DOWN toward the table, edge cards higher + tilted.
+//   left (pos 3)  : vertical fan, pivot on the SCREEN-EDGE side → center card
+//                   reaches furthest RIGHT (toward table), edges curl back.
+//   right (pos 1) : mirror of left.
+// Cards are element-box cardShort×cardLong (portrait); side seats add a 90deg
+// base rotation so their visual is landscape — same look as today's backs.
+// Sizing: pitch (gap between cards) starts at ~60% of the card (40% overlap,
+// the "numpuk" look) and shrinks toward a 3px dense stack as the seat gets
+// tighter; if even that overflows, card + pitch scale down proportionally.
+// The count is never truncated — the badge next to the name still carries
+// the exact number.
+function layoutOppFan(areaEl, pos) {
+  if (!areaEl) return;
+  const handEl = areaEl.querySelector(':scope > .hand');
+  if (!handEl) return;
+  const cards = Array.from(handEl.querySelectorAll(':scope > .card'));
+  const n = cards.length;
+  if (n === 0) { handEl.style.width = ''; handEl.style.height = ''; handEl.style.transform = ''; return; }
+
+  // Budget comes from the player-area (CSS-stable), not the hand box — the
+  // hand box gets our inline sizes, so measuring it would feed back.
+  const aBox = areaEl.getBoundingClientRect();
+  const cs = getComputedStyle(areaEl);
+  const padH = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const padV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  const labelEl = areaEl.querySelector(':scope > .player-label');
+  const labelH = labelEl ? labelEl.getBoundingClientRect().height : 0;
+  const centerEl = document.getElementById('center-area');
+  const bandH = centerEl ? centerEl.getBoundingClientRect().height : aBox.height;
+
+  const vertical = pos !== 2;
+  const bw = Math.max(24, aBox.width - padH - 2);
+  const cellH = Math.max(14, aBox.height - padV - labelH - 2);
+  // Side seats in tight landscape get a hand box far shorter than the middle
+  // band; let the fan use up to ~72% of the band height (it overflows the
+  // hand box — overflow is visible — but stays within the table's middle row).
+  const bh = vertical ? Math.max(cellH, Math.round(bandH * 0.72)) : cellH;
+
+  let cardLong, cardShort, pitch;
+  if (vertical) {
+    // Spread axis = Y. Visual card after 90deg: cardLong wide × cardShort tall.
+    cardLong = Math.min(28, bw - 2);
+    cardShort = Math.round(cardLong * (20 / 28));
+    pitch = Math.min(Math.round(cardShort * 0.6), Math.floor((bh - cardShort) / Math.max(1, n - 1)));
+    pitch = Math.max(3, pitch);
+    let span = (n - 1) * pitch + cardShort;
+    const k = span > bh ? bh / span : 1;
+    cardShort = Math.max(6, Math.round(cardShort * k));
+    pitch = Math.max(2, Math.round(pitch * k));
+  } else {
+    // Spread axis = X. Card sits upright: cardShort wide × cardLong tall, and
+    // cardLong + arc rise must fit the row height.
+    cardLong = Math.min(28, Math.max(14, Math.floor(bh * 0.9)));
+    cardShort = Math.round(cardLong * (20 / 28));
+    pitch = Math.min(Math.round(cardShort * 0.6), Math.floor((bw - cardShort) / Math.max(1, n - 1)));
+    pitch = Math.max(3, pitch);
+    let span = (n - 1) * pitch + cardShort;
+    const k = span > bw ? bw / span : 1;
+    cardShort = Math.max(6, Math.round(cardShort * k));
+    pitch = Math.max(2, Math.round(pitch * k));
+  }
+
+  const totalTilt = (n >= 10 ? 18 : n >= 5 ? 12 : 8) * Math.PI / 180;
+  const span = (n - 1) * pitch + cardShort;
+  // R comes from the CENTER-TO-CENTER spread ((n-1)*pitch), not the full span
+  // — the chord of the arc is between the outermost card centers.
+  const spread = (n - 1) * pitch;
+  const R = n > 1 ? (spread / 2) / Math.sin(totalTilt / 2) : 0;
+  const lift = n > 1 ? R * (1 - Math.cos(totalTilt / 2)) : 0;
+
+  // Container = exact fan bounding box, so the flex column (align-items:
+  // center) lands it dead-center in the seat cell.
+  const cw = vertical ? Math.round(cardLong + lift + 2) : Math.round(span + 2);
+  const ch = vertical ? Math.round(span + 2) : Math.round(cardLong + lift + 2);
+  handEl.style.width = cw + 'px';
+  handEl.style.height = ch + 'px';
+  handEl.style.transform = '';
+
+  cards.forEach((c, i) => {
+    const t = n === 1 ? 0 : i / (n - 1) - 0.5; // -0.5 .. 0.5
+    const th = t * totalTilt;
+    const s = Math.sin(th), co = Math.cos(th);
+    let x, y, rot;
+    if (vertical) {
+      y = ch / 2 + R * s; // spread vertically
+      // Center card (th=0) is the one furthest toward the table; edges curl
+      // back R(1-cos th) toward the screen edge.
+      x = pos === 3
+        ? (cw - 1 - cardLong / 2) - R * (1 - co)
+        : (1 + cardLong / 2) + R * (1 - co);
+      rot = (pos === 3 ? 90 : -90) + th * 180 / Math.PI;
+    } else {
+      x = cw / 2 + R * s; // spread horizontally
+      y = (ch - 2 - cardLong / 2) - R * (1 - co); // center card lowest (bows down)
+      rot = 180 - th * 180 / Math.PI;
+    }
+    c.style.width = cardShort + 'px';
+    c.style.height = cardLong + 'px';
+    c.style.margin = '0';
+    c.style.left = (x - cardShort / 2) + 'px';
+    c.style.top = (y - cardLong / 2) + 'px';
+    c.style.transform = 'rotate(' + rot.toFixed(2) + 'deg)';
+  });
 }
 
 // Reset inline fan styles (called from the no-hand / lobby paths).
