@@ -136,7 +136,14 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* Hands */
 .hand { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; min-width: 0; max-width: 100%; }
-.hand-bottom { flex-wrap: nowrap; overflow-x: hidden; overflow-y: visible; padding: 10px 8px 4px; }
+/* Bottom hand is an absolutely-positioned FAN: .hand-bottom gets
+   position:relative + an explicit height from layoutBottomFan() and each
+   .card gets left/width/height/transform from the same function. The flex
+   properties below are inert for it (no in-flow children), harmless.
+   width:100% is load-bearing: the seat is a column flex with
+   align-items:center + min-width:0, so a zero-content-width child would
+   otherwise shrink to 0 and the fan math would collapse. */
+.hand-bottom { flex-wrap: nowrap; overflow: visible; padding: 10px 8px 4px; position: relative; width: 100%; min-width: 0; }
 .hand-bottom .card:first-child { margin-left: 0; }
 .hand-top { display: flex; flex-wrap: nowrap; justify-content: center; }
 .hand-top .card {
@@ -161,24 +168,42 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .hand-right .card.face-down::after { transform: rotate(180deg); }
 
 /* Cards */
-.card { width: 40px; height: 56px; border-radius: 5px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; cursor: pointer; border: 2px solid #ccc; user-select: none; transition: transform 0.15s, box-shadow 0.15s; position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; margin-left: -10px; }
+/* Base 44x62: fallback sizes. The human hand fan always gets inline
+   width/height/left/top/transform from layoutBottomFan() (render.js); the
+   independent `translate`/`scale` properties below COMPOSE with that inline
+   transform (unlike `transform:` overrides, which would be ignored). */
+.card { width: 44px; height: 62px; border-radius: 6px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; border: 2px solid #ccc; user-select: none; transition: transform 0.15s, translate 0.15s, scale 0.12s, box-shadow 0.15s; position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; margin-left: -10px; }
 /* The bottom seat is always the human's own hand, and every gesture there is
    handled in JS (tap, swipe-up select, drag-to-center play, drag-to-card
    manual sort). 'none' (read by the browser before the gesture starts, unlike
    the JS-side setting in pointerdown) stops touch scroll/pinch from stealing
    the swipe — the hand is JS-scaled to fit, so it never needs to scroll. */
 .hand-bottom .card { touch-action: none; }
+/* Fan layout (bottom hand): JS (layoutBottomFan) absolutely positions each
+   card with inline left/top/transform (translate + rotate) along an arc.
+   margin-left:0 — the base .card's -10px overlap margin is for the old
+   flat strip and would skew the arc (all but the first card shift 10px). */
+.hand-bottom .card { position: absolute; margin-left: 0; }
+/* Smooth shuffle: once the fan has laid out at least once, card reorders
+   (left/top) and turn changes (transform) animate. Gated on data-ready so
+   the INITIAL deal snaps into place instead of flying in from the corner.
+   (The drag follower lives on <body>, not inside .hand-bottom, so its
+   `transition:none` rule is unaffected by this.) */
+.hand-bottom[data-ready] .card {
+  transition: left 0.18s ease, top 0.18s ease, transform 0.18s ease,
+              translate 0.15s, scale 0.12s, opacity 0.15s, box-shadow 0.15s;
+}
 .card.red { color: #e74c3c; }
 .card.black { color: #2c3e50; }
 .card.red { color: #d32f2f; }
 .card.black { color: #222; }
 .card .rank { font-size: 13px; line-height: 1; }
 .card .suit { font-size: 16px; line-height: 1; }
-.card.selected { border-color: #ffd700; transform: translateY(-6px); box-shadow: 0 4px 12px rgba(255,215,0,0.5); z-index: 10; }
-.card.card-hovered:not(.selected):not(.face-down) { transform: scale(1.08); transform-origin: bottom center; box-shadow: 0 6px 16px rgba(255,255,255,0.2); border-color: #fff; z-index: 5; }
-.card.drag-placeholder { opacity: 0.25; transform: scale(0.85); transition: opacity 0.15s, transform 0.15s; }
-.card.drag-target { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,0.5); transform: scale(1.05); transition: transform 0.15s, box-shadow 0.15s; }
-.card.drag-follower { position: fixed; z-index: 9999; pointer-events: none; transform: translate(-50%, -50%) rotate(-3deg) scale(1.1); box-shadow: 0 12px 32px rgba(0,0,0,0.5); transition: none; }
+.card.selected { border-color: #ffd700; translate: 0 -8px; box-shadow: 0 4px 12px rgba(255,215,0,0.5); z-index: 10; }
+.card.card-hovered:not(.selected):not(.face-down) { scale: 1.08; box-shadow: 0 6px 16px rgba(255,255,255,0.2); border-color: #fff; z-index: 5; }
+.card.drag-placeholder { opacity: 0.25; scale: 0.85; transition: opacity 0.15s, scale 0.15s; }
+.card.drag-target { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,0.5); scale: 1.05; transition: scale 0.15s, box-shadow 0.15s; }
+.card.drag-follower { position: fixed; z-index: 9999; pointer-events: none; margin-left: 0; transform: translate(-50%, -50%) rotate(-3deg) scale(1.1); box-shadow: 0 12px 32px rgba(0,0,0,0.5); transition: none; }
 .card.tapped { animation: cardTap 0.2s ease; }
 
 /* Center trick area: always a stable, sized drop target for the
@@ -206,9 +231,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #gesture-hint { display: none; }
 }
 @keyframes cardTap {
-  0% { transform: scale(1); }
-  50% { transform: scale(0.92); }
-  100% { transform: scale(1); }
+  0% { scale: 1; }
+  50% { scale: 0.92; }
+  100% { scale: 1; }
 }
 #action-bar button:active { transform: scale(0.95); }
 
@@ -403,7 +428,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 /* --- Responsive: Tablet portrait (769-1024px) --- */
 @media (min-width: 769px) and (max-width: 1024px) and (orientation: portrait) {
   #app { grid-template-columns: 1fr 200px; }
-  .card { width: 36px; height: 50px; font-size: 11px; margin-left: -8px; }
+  .card { width: 36px; height: 50px; font-size: 11px; }
   .card .rank { font-size: 11px; }
   .card .suit { font-size: 14px; }
   .card.face-down::after { font-size: 20px; }
@@ -412,13 +437,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #log { font-size: 11px; }
   .player-label { font-size: 12px; }
   #header h1 { font-size: 18px; }
-  .hand-bottom { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .hand-bottom { -webkit-overflow-scrolling: touch; }
 }
 
 /* --- Responsive: Tablet landscape (max 1024px, wide screens) --- */
 @media (max-width: 1024px) and (orientation: landscape) and (min-height: 400px) {
   #app { grid-template-columns: 1fr 200px; }
-  .card { width: 36px; height: 50px; font-size: 11px; margin-left: -8px; }
+  .card { width: 36px; height: 50px; font-size: 11px; }
   .card .rank { font-size: 11px; }
   .card .suit { font-size: 14px; }
   .card.face-down::after { font-size: 20px; }
@@ -597,7 +622,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-bottom::-webkit-scrollbar { display: none; }
 
   .card.selected {
-    transform: translateY(-10px);
+    translate: 0 -10px;
     border-color: #ffd700;
     box-shadow: 0 4px 12px rgba(255,215,0,0.5);
     z-index: 10;
@@ -775,13 +800,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-bottom::-webkit-scrollbar { display: none; }
 
   .card.selected {
-    transform: translateY(-10px);
+    translate: 0 -10px;
     border-color: #ffd700;
     box-shadow: 0 4px 12px rgba(255,215,0,0.5);
     z-index: 10;
   }
 
-  .card { width: 36px; height: 50px; min-width: 36px; margin-left: 0; }
+  .card { width: 44px; height: 62px; min-width: 44px; }
   .card .rank { font-size: 10px; }
   .card .suit { font-size: 13px; }
   .card.face-down::after { font-size: 16px; }
@@ -928,7 +953,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .card .suit { font-size: 12px; }
   .card.face-down::after { font-size: 14px; }
   .hand-bottom { gap: 1px; max-width: 100%; padding: 18px 4px 1px; overflow: visible; }
-  .card.selected { transform: translateY(-10px); border-color: #ffd700; box-shadow: 0 4px 12px rgba(255,215,0,0.5); z-index: 10; }
+  .card.selected { translate: 0 -10px; border-color: #ffd700; box-shadow: 0 4px 12px rgba(255,215,0,0.5); z-index: 10; }
   .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; margin-left: -3px; }
   .hand-top .card:first-child { margin-left: 0; }
   .hand-top .card.face-down::after { font-size: 10px; transform: rotate(180deg); }

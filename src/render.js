@@ -48,21 +48,40 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
           cardEl._dragged = false;
           const start = { x: e.clientX, y: e.clientY };
           const fromIdx = parseInt(cardEl.dataset.idx);
-          cardEl.setPointerCapture(e.pointerId);
+          try { cardEl.setPointerCapture(e.pointerId); } catch (_) { /* synthetic/ended pointers */ }
 
           const rect = cardEl.getBoundingClientRect();
           const follower = cardEl.cloneNode(true);
-          follower.className = cardEl.className + ' drag-follower';
+          follower.className = cardEl.className.replace(/\s*(drag-placeholder|selected|card-hovered|tapped)/g, '').trim() + ' drag-follower';
+          // Wipe the source card's fan positioning — the follower is
+          // pointer-tracked; left/top are set on every pointermove.
+          follower.style.cssText = '';
           follower.style.width = rect.width + 'px';
           follower.style.height = rect.height + 'px';
-          follower.style.left = rect.left + rect.width / 2 + 'px';
-          follower.style.top = rect.top + rect.height / 2 + 'px';
+          follower.style.left = (rect.left + rect.width / 2) + 'px';
+          follower.style.top = (rect.top + rect.height / 2) + 'px';
           document.body.appendChild(follower);
           cardEl.classList.add('drag-placeholder');
 
           let targetIdx = -1;
           const dropZone = document.getElementById('center-cards');
           const swipeMin = Math.max(16, Math.round(rect.height * 0.45));
+          // Fan slots: the x-position of every card's visual center. Dropping
+          // "on a card" is decided by nearest slot (geometric), not by
+          // elementFromPoint — with a fanned, overlapping hand the topmost
+          // element at the pointer is often NOT the card you're aiming at.
+          const slotXs = () => Array.from(document.querySelectorAll('.hand-bottom > .card'))
+            .map(el => { const r = el.getBoundingClientRect(); return r.left + r.width / 2; });
+          const nearestSlot = (x) => {
+            const xs = slotXs();
+            let best = -1, bestD = Infinity;
+            for (let i = 0; i < xs.length; i++) {
+              const d = Math.abs(xs[i] - x);
+              if (d < bestD) { bestD = d; best = i; }
+            }
+            // Generous: a drop anywhere in the hand strip lands on the closest slot.
+            return (best >= 0 && bestD < 90) ? best : -1;
+          };
 
           const clearHighlights = () => {
             document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
@@ -84,13 +103,14 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
                 if (dropZone) dropZone.classList.add('play-drop-active');
                 return;
               }
-              const targetEl = elUnder.closest('.hand-bottom .card[data-idx]');
-              if (targetEl && targetEl !== cardEl) {
-                targetEl.classList.add('drag-target');
-                targetIdx = parseInt(targetEl.dataset.idx);
-              } else {
-                targetIdx = -1;
-              }
+            }
+            const slot = nearestSlot(ev.clientX);
+            if (slot >= 0 && slot !== fromIdx) {
+              const targetEl = document.querySelector('.hand-bottom > .card:nth-child(' + (slot + 1) + ')');
+              if (targetEl) targetEl.classList.add('drag-target');
+              targetIdx = slot;
+            } else {
+              targetIdx = -1;
             }
           };
 
@@ -121,13 +141,13 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
               return;
             }
 
-            // 3) Dropped on another hand card -> manual sort (reorder).
-            if (targetIdx >= 0 && targetIdx !== fromIdx) {
-              let adjTarget = targetIdx;
-              if (fromIdx < targetIdx) adjTarget = targetIdx - 1;
+            // 3) Dropped anywhere along the hand -> manual sort: the card
+            //    takes the nearest slot (index = slot number).
+            const slot = nearestSlot(ev.clientX);
+            if (slot >= 0 && slot !== fromIdx) {
               const hands = state.hands;
               const [moved] = hands[playerIdx].splice(fromIdx, 1);
-              hands[playerIdx].splice(adjTarget, 0, moved);
+              hands[playerIdx].splice(slot, 0, moved);
               if (state.onManualReorder) {
                 state.onManualReorder(hands[playerIdx].map(c => c.rank + ':' + c.suit));
               }
@@ -577,89 +597,99 @@ function performHandSizing() {
   const isShortLandscape = window.matchMedia('(max-height: 400px) and (orientation: landscape)').matches;
   const isMobile = isMobilePortrait || isMobileLandscape || isShortLandscape;
 
-  if (!isMobile) {
-    tableArea.style.paddingBottom = '';
-    clearAllSizing();
-    return;
-  }
-
-  // --- Batch all reads first ---
   const sidebar = document.getElementById('sidebar');
   const actionBar = document.getElementById('action-bar');
   const sidebarHeight = sidebar ? sidebar.offsetHeight : 60;
   const actionBarHeight = actionBar && actionBar.classList.contains('visible') ? actionBar.offsetHeight : 44;
-    const clearance = sidebarHeight + actionBarHeight + 4;
+  const clearance = sidebarHeight + actionBarHeight + 4;
+  tableArea.style.paddingBottom = isMobile ? (clearance + 'px') : '';
 
-  const handBottom = document.querySelector('.hand-bottom');
-  let cardW = 0, cardH = 0, rankFontSize = 0, suitFontSize = 0;
-  let needSizing = false;
-
-  if (handBottom) {
-    const cards = handBottom.querySelectorAll('.card');
-    if (cards.length > 0) {
-      const handRect = handBottom.getBoundingClientRect();
-      const style = getComputedStyle(handBottom);
-      const paddingL = parseFloat(style.paddingLeft) || 0;
-      const paddingR = parseFloat(style.paddingRight) || 0;
-      const availWidth = handRect.width - paddingL - paddingR;
-      const gap = 1;
-      const overlap = -6;
-      const effectiveGap = cards.length > 1 ? Math.max(gap, overlap) : 0;
-      const totalGap = effectiveGap * (cards.length - 1);
-      cardW = Math.max(16, Math.min(44, Math.floor((availWidth - totalGap) / cards.length)));
-      cardH = Math.round(cardW * 1.375);
-      rankFontSize = Math.max(7, Math.round(cardW * 0.44));
-      suitFontSize = Math.max(8, Math.round(cardW * 0.56));
-      needSizing = true;
-    }
-  }
-
-  // --- Batch all writes after reads ---
-  tableArea.style.paddingBottom = clearance + 'px';
-
-  if (!needSizing) {
-    clearAllSizing();
-    return;
-  }
-
-  const allCards = document.querySelectorAll('.card');
-  allCards.forEach(c => {
-    if (c.closest('.hand-bottom')) {
-      c.style.width = cardW + 'px';
-      c.style.height = cardH + 'px';
-      c.style.minWidth = cardW + 'px';
-      const rankEl = c.querySelector('.rank');
-      const suitEl = c.querySelector('.suit');
-      if (rankEl) rankEl.style.fontSize = rankFontSize + 'px';
-      if (suitEl) suitEl.style.fontSize = suitFontSize + 'px';
-    } else {
-      c.style.width = ''; c.style.height = ''; c.style.minWidth = '';
-      const rankEl = c.querySelector('.rank');
-      const suitEl = c.querySelector('.suit');
-      if (rankEl) rankEl.style.fontSize = '';
-      if (suitEl) suitEl.style.fontSize = '';
-    }
-  });
-
-  const allHands = document.querySelectorAll('.hand-top, .hand-bottom, .hand-left, .hand-right');
-  allHands.forEach(h => {
-    h.style.gap = '';
-    h.style.justifyContent = '';
-    h.style.overflowX = '';
-    h.style.overflowY = '';
-  });
-
+  layoutBottomFan();
 }
 
-// Shrink the opponent hand strips so they fit their seats. The base CSS gives
-// side cards a fixed box with -6px margins; at 13 face-down cards in a short
-// viewport that overflows the seat and clips. We measure the real strip extent
-// and, if it doesn't fit, shrink per-card size (keeping the card ratio) until
-// the computed extent fits, so no seat ever clips its strip.
+// Lay the human's own hand (bottom seat) out as a FAN: every card is
+// absolutely positioned on a shallow arc, rotated around a common pivot
+// below the hand (like holding cards). Cards are sized from the available
+// width so a full 13-card hand still fits — and at readable size — on a
+// phone. The geometry (slot centers, card widths) is also what the
+// drag-to-reorder gesture uses as its drop targets (see ensureCardEl).
+function layoutBottomFan() {
+  const handEl = document.querySelector('.hand-bottom');
+  if (!handEl) return;
+  const cards = Array.from(handEl.querySelectorAll(':scope > .card'));
+  const n = cards.length;
+  if (n === 0) { handEl.style.height = '66px'; handEl.removeAttribute('data-ready'); return; }
+  // Mid-drag: the hand is being mutated in place; do not re-flow the fan
+  // (the drag follower tracks the pointer, the placeholder must not slide).
+  if (handEl.querySelector('.drag-placeholder')) return;
+
+  const style = getComputedStyle(handEl);
+  const padL = parseFloat(style.paddingLeft) || 0;
+  const padR = parseFloat(style.paddingRight) || 0;
+  const innerW = handEl.clientWidth - padL - padR;
+
+  // Height budget: the fan's LAYOUT height is bounded by the viewport, but its
+  // visual top may overlap the (visually empty) bottom of the center row —
+  // the fan is z-indexed above it (CSS), so we claim `overlap` px of headroom
+  // on top of the budget. Rule of thumb: ~17% of the viewport (portrait
+  // phones), ~15% on short/landscape ones.
+  let budget = Math.min(140, Math.round(window.innerHeight * 0.17));
+  if (window.innerHeight < 520) budget = Math.max(60, Math.round(window.innerHeight * 0.15));
+  const overlap = 22;
+
+  const pitchRatio = n >= 8 ? 0.75 : n >= 5 ? 0.85 : 1;
+  const maxSpan = Math.min(innerW - 4, 560);
+  const totalTilt = (n >= 10 ? 18 : n >= 6 ? 14 : 8) * Math.PI / 180; // full fan spread
+  const fit = (w) => {
+    const h = Math.round(w * 1.4);
+    const span = (n - 1) * w * pitchRatio;
+    const R = span / 2 / Math.sin(totalTilt / 2);
+    const lift = R * (1 - Math.cos(totalTilt / 2));
+    return { h, span, R, lift };
+  };
+  let cardW = Math.max(28, Math.min(44, Math.floor(maxSpan / ((n - 1) * pitchRatio + 1))));
+  let { h: cardH, span, R, lift: arcLift } = fit(cardW);
+  // Shrink until the whole fan (card + arc rise + margin) fits the row.
+  while (cardW > 28 && cardH + arcLift + 12 - overlap > budget) {
+    cardW -= 2;
+    ({ h: cardH, span, R, lift: arcLift } = fit(cardW));
+  }
+
+  handEl.style.height = Math.round(cardH + arcLift + 12) + 'px';
+  // Arc math: card i's BOTTOM-center sits at (cx + R*sin θ, pivotY - R*cos θ).
+  // The pivot is R below the fan, so pivotY = H - 6 + R puts the center card's
+  // bottom 6px above the hand's bottom edge and the edge cards `lift` lower.
+  const H = Math.round(cardH + arcLift + 12);
+  const pivotY = R + H - 6;
+  const cx = padL + innerW / 2;
+  cards.forEach((c, i) => {
+    const t = n === 1 ? 0 : (i / (n - 1)) - 0.5; // -0.5 .. 0.5
+    const theta = t * totalTilt;
+    const x = R * Math.sin(theta);
+    const y = -R * Math.cos(theta); // up from pivot (center card highest)
+    c.style.width = cardW + 'px';
+    c.style.height = cardH + 'px';
+    c.style.minWidth = cardW + 'px';
+    c.style.left = (cx + x - cardW / 2) + 'px';
+    c.style.top = (pivotY + y - cardH) + 'px';
+    c.style.transform = 'rotate(' + (theta * 180 / Math.PI).toFixed(2) + 'deg)';
+    const rankEl = c.querySelector('.rank');
+    const suitEl = c.querySelector('.suit');
+    if (rankEl) rankEl.style.fontSize = Math.max(9, Math.round(cardW * 0.30)) + 'px';
+    if (suitEl) suitEl.style.fontSize = Math.max(10, Math.round(cardW * 0.37)) + 'px';
+  });
+  // Mark the fan as laid out: enables the shuffle/turn-change transitions
+  // (CSS `.hand-bottom[data-ready] .card`) from the NEXT render onward, so
+  // the initial deal snaps into place instead of animating from (0,0).
+  handEl.setAttribute('data-ready', '1');
+}
+
+// Reset inline fan styles (called from the no-hand / lobby paths).
 function clearAllSizing() {
   const allCards = document.querySelectorAll('.card');
   allCards.forEach(c => {
     c.style.width = ''; c.style.height = ''; c.style.minWidth = '';
+    c.style.left = ''; c.style.top = ''; c.style.transform = '';
     const rankEl = c.querySelector('.rank');
     const suitEl = c.querySelector('.suit');
     if (rankEl) rankEl.style.fontSize = '';

@@ -87,17 +87,39 @@ test('manual drag reorder persists and is not re-sorted by a later state message
   const order = () => page.evaluate(() =>
     [...document.querySelectorAll('#hand-0 .card')].map(c => c.dataset.key).join(','));
 
-  // Drag card at index 0 onto card at index 2.
-  const src = await page.locator('#hand-0 .card').nth(0).boundingBox();
-  const dst = await page.locator('#hand-0 .card').nth(2).boundingBox();
-  await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
+  const sorted = await order(); // order after the Sort click (drag's baseline)
+
+  // Drag card at index 0 onto slot 2. In the fan every card's face is
+  // overlapped by its right neighbour, so grab the VISIBLE SLIVER (the left
+  // strip only this card owns) — a center-point grab would hit the
+  // neighbour and silently drag the wrong card.
+  const srcBox = await page.evaluate(() => {
+    const c = document.querySelectorAll('#hand-0 > .card')[0];
+    const r = c.getBoundingClientRect();
+    return { x: r.left + Math.max(4, r.width * 0.12), y: r.top + r.height / 2 };
+  });
+  const dstBox = await page.evaluate(() => {
+    const c = document.querySelectorAll('#hand-0 > .card')[2];
+    const r = c.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await page.mouse.move(srcBox.x, srcBox.y);
   await page.mouse.down();
-  await page.mouse.move(src.x + src.width / 2 + 8, src.y + src.height / 2, { steps: 3 });
-  await page.mouse.move(dst.x + dst.width / 2, dst.y + dst.height / 2, { steps: 5 });
+  await page.mouse.move(srcBox.x + 8, srcBox.y, { steps: 3 });
+  await page.mouse.move(dstBox.x, dstBox.y, { steps: 5 });
   await page.mouse.up();
   await page.waitForTimeout(150);
   const afterDrag = await order();
   console.log('AFTER DRAG:', afterDrag);
+
+  // The drag must ACTUALLY reorder (this was the blind spot: the test used
+  // to only assert persistence, so a total no-op drag still passed).
+  // New semantics: the card OCCUPIES the slot it's dropped on.
+  const keysBefore = sorted.split(',');
+  const keysAfter = afterDrag.split(',');
+  expect(keysAfter.join(',') !== keysBefore.join(',')).toBe(true, 'drag must change the order');
+  expect(keysAfter[2]).toBe(keysBefore[0], 'dragged card must end AT slot 2');
+  expect(new Set(keysAfter).size).toBe(13, 'no cards lost in the drag');
 
   // Same server deal order lands again; the manual arrangement must survive.
   const ss2 = makeServerState({ phase: 'playing', currentPlayer: 1, hands: hs, names: ['Me','Bot2','Bot3','Bot4'] });
