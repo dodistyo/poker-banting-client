@@ -433,7 +433,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 @media (max-width: 768px) and (orientation: portrait) {
   #app, #app.no-sidebar {
     grid-template-columns: 1fr;
-    grid-template-rows: 38px 1fr auto;
+    grid-template-rows: 44px 1fr auto;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     overflow: visible;
   }
@@ -441,6 +441,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #header h1 { font-size: 14px; }
   #header button { padding: 3px 10px; font-size: 11px; }
   #sidebar-toggle-btn { display: none; }
+  /* Mobile header row is 44px (was 38px) so the standard 44px hamburger fits
+     exactly with zero overhang onto the felt. Drop the base 4px top offset so
+     the button fills the band top-to-bottom instead of spilling below it. */
+  #menu-toggle-btn { top: calc(0px + env(safe-area-inset-top, 0px)); }
 
   #sidebar {
     grid-column: 1 / -1;
