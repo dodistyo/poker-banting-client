@@ -196,6 +196,15 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 @media (max-width: 768px), (max-height: 500px) {
   #gesture-hint { display: block; }
 }
+/* Short-height landscape (e.g. an 844x390 phone held sideways): the center
+   column is taller than its grid row, so the gesture cheat line overflows the
+   bottom of #center-area and collides with the bottom seat's player-label
+   ("Dodi · 13 · YOUR TURN"). The dashed drop zone + "pick your cards" prompt
+   already convey the play action there, so hide the line in that orientation
+   to keep the seat label legible. (Desktop/landscape > 500px tall is untouched.) */
+@media (max-height: 500px) and (orientation: landscape) {
+  #gesture-hint { display: none; }
+}
 @keyframes cardTap {
   0% { transform: scale(1); }
   50% { transform: scale(0.92); }
