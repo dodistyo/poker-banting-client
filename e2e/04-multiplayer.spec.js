@@ -74,9 +74,12 @@ test('two real clients share one room: create, join, ready, play', async ({ brow
   await expect(ownHandDealt(pageB)).resolves.toBe(true);
   await watch(pageA, 2500); // viewer: the table with two humans + two bots
 
-  // Both headers carry the same room code
-  await expect(pageA.locator('#room-code-header')).toHaveText('Room: ' + code);
-  await expect(pageB.locator('#room-code-header')).toHaveText('Room: ' + code);
+  // Both drawers carry the same room code
+  await pageA.click('#menu-toggle-btn');
+  await expect(pageA.locator('#menu-drawer-code')).toHaveText(code);
+  await pageA.keyboard.press('Escape');
+  await pageB.click('#menu-toggle-btn');
+  await expect(pageB.locator('#menu-drawer-code')).toHaveText(code);
 
   await ctxA.close();
   await ctxB.close();

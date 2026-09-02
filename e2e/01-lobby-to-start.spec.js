@@ -40,9 +40,12 @@ test('lobby to game start over real server', async ({ page }) => {
   expect(handInfo.len).toBeLessThanOrEqual(13);
   expect(handInfo.hasThree).toBe(false);
 
-  // Room code moves into the header
-  await expect(page.locator('#room-code-header')).toBeVisible();
-  await expect(page.locator('#room-code-header')).toHaveText('Room: ' + (await partyCode.textContent()));
+  // Room code moved to the menu drawer (top-right hamburger)
+  await expect(page.locator('#menu-toggle-btn')).toBeVisible();
+  await page.click('#menu-toggle-btn');
+  await expect(page.locator('#menu-drawer')).toHaveClass(/open/);
+  await expect(page.locator('#menu-drawer-code')).toHaveText(await partyCode.textContent());
+  await expect(page.locator('#menu-copy-btn')).toBeEnabled();
 
   // Three bots were added to fill the table
   await expect(page.locator('.bot-badge')).toHaveCount(3);

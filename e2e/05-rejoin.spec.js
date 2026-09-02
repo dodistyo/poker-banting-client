@@ -35,7 +35,9 @@ test('rejoin after reload restores the same seat', async ({ page }) => {
   await waitForConnected(page);
   await waitForPhase(page, 'playing');
   await expect(ownHandDealt(page)).resolves.toBe(true);
-  await expect(page.locator('#room-code-header')).toHaveText('Room: ' + code);
+  // Room code lives in the menu drawer (rejoined session preserved it)
+  await page.click('#menu-toggle-btn');
+  await expect(page.locator('#menu-drawer-code')).toHaveText(code);
   // Seat must be the human seat again, not a renamed bot.
   const myName = await page.evaluate(() => {
     const s = window.__app_getState();

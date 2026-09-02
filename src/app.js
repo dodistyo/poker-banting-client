@@ -6,6 +6,11 @@ import { saveSession, loadSession, clearSession } from './session.js';
 let state = null;
 let playerId = null;
 let roomCode = null;
+// True when the room this session belongs to is public. Only the CREATOR of a
+// PUBLIC room in the lobby gets "Close Room" (the server dissolves the room
+// when its public-lobby creator leaves — see rooms.rs:leave_room); every other
+// situation is a plain "Leave" (mid-game, a leaving human's seat becomes a bot).
+let isPublic = false;
 // The client hand is a projection of the server hand, which is ALWAYS in
 // deal order. So any client-side reorder (Sort, or a manual drag) reverts on
 // the next state message (bot play/pass, our own play echo). To make a
@@ -151,8 +156,9 @@ function handleMessage(msg) {
       handOrder = null; // fresh deal
       playerId = msg.playerId;
       roomCode = msg.code;
+      isPublic = msg.isPublic !== false;
       state = adaptState(msg.state);
-      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'You'), msg.token);
+      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'You'), msg.token, isPublic);
       handlePhase();
       clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
@@ -164,8 +170,9 @@ function handleMessage(msg) {
       handOrder = null; // fresh deal
       playerId = msg.playerId;
       roomCode = msg.code;
+      isPublic = loadSession().isPublic === true; // a joiner is never the creator
       state = adaptState(msg.state);
-      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token);
+      saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token, isPublic);
       handlePhase();
       clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
@@ -176,6 +183,7 @@ function handleMessage(msg) {
       handOrder = null; // fresh deal
       playerId = msg.playerId;
       roomCode = msg.code;
+      isPublic = loadSession().isPublic === true;
       state = adaptState(msg.state);
       saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token);
       handlePhase();
@@ -353,17 +361,28 @@ function handlePhase() {
   if (state.phase === 'lobby') {
     showLobby();
     closeLogSheet();
+    // The waiting room has its own Leave button on the party screen; the
+    // hamburger belongs to the game itself, so it's hidden while we lobby.
+    closeMenuDrawer();
+    const menuBtn = document.getElementById('menu-toggle-btn');
+    if (menuBtn) menuBtn.classList.remove('visible');
     return;
   }
 
   hideLobby();
 
-  // Show room code in header
+  // The room code now lives in the menu drawer (opened from the top-right
+  // hamburger), which is visible in every viewport — desktop and mobile.
   const rcHeader = document.getElementById('room-code-header');
-  if (rcHeader && roomCode) {
-    rcHeader.textContent = "Room: " + roomCode;
-    rcHeader.style.display = "inline";
-  }
+  if (rcHeader) rcHeader.style.display = 'none';
+
+  // Top-right menu is the escape hatch: visible in playing AND game-over
+  // (you can leave/close from the game-over screen), hidden only while the
+  // full-screen 3-phase discard modal is up (it owns the screen, and there's
+  // no meaningful "leave" mid-discard anyway).
+  renderMenuDrawer();
+  const menuBtn = document.getElementById('menu-toggle-btn');
+  if (menuBtn) menuBtn.classList.toggle('visible', !state.threePhase);
 
   if (state.threePhase) {
     closeLogSheet();
@@ -466,6 +485,17 @@ function renderPartyScreen() {
   const isCreator = myIdx !== -1 && players[myIdx].isCreator;
   const myReady = state.ready && state.ready[myIdx];
 
+  // The waiting room's leave button doubles as "close" for the one case the
+  // server actually dissolves the room: the creator of a public room (see
+  // rooms.rs:leave_room). Mid-game there is no such thing as closing — a
+  // leaving seat just becomes a bot — so only the waiting room labels it.
+  const leaveBtnEl = document.getElementById('party-leave-btn');
+  if (leaveBtnEl) {
+    const isClose = isCreator && isPublic;
+    leaveBtnEl.textContent = isClose ? 'Close Room' : 'Leave';
+    leaveBtnEl.style.background = isClose ? '#7a1f2b' : '#2a3a5c';
+  }
+
   // Multi-round sessions: the header shows the running round number so the
   // waiting room reads "Round 2 — Waiting" instead of a blank re-lobby.
   const header = document.querySelector('#lobby-screen-party .lobby-header h3');
@@ -507,13 +537,24 @@ window.__app_toggleReady = () => {
 };
 
 window.__app_leaveRoom = () => {
+  // The drawer's leave/close button (two-tap confirm) also routes through here.
+  closeMenuDrawer();
   sendLeaveRoom();
   resetRejoin();
   disarmLobbyWatchdog();
   roomCode = null;
   playerId = null;
+  isPublic = false;
   state = null;
   clearSession();
+  // The escape hatch is gone with the room — hide the hamburger too.
+  const menuBtn = document.getElementById('menu-toggle-btn');
+  if (menuBtn) menuBtn.classList.remove('visible');
+  // showLobbyScreen only swaps the active screen; the overlay itself is
+  // hidden during play, so a mid-game leave must re-show it or the user is
+  // left staring at an empty table with no UI.
+  const overlay = document.getElementById('lobby-overlay');
+  if (overlay) overlay.style.display = 'flex';
   showLobbyScreen('main');
 };
 
@@ -832,6 +873,132 @@ export function toggleLogSheet() {
   if (sheet && sheet.classList.contains('open')) closeLogSheet();
   else openLogSheet();
 }
+
+// ── Menu drawer (top-right hamburger) ────────────────────────────────────
+// A right-side slide-in drawer, present in EVERY viewport (desktop and
+// mobile). It is the single place for room "meta" actions: showing + copying
+// the room code, and leaving/closing the room. The room code previously lived
+// in the header's #room-code-header span; it moved here so it is reachable on
+// mobile (where the header is cramped) as well as desktop.
+//
+// Leave vs Close: only the CREATOR of a PUBLIC room while still in the lobby
+// gets "Close Room" (the server dissolves the room in that case — see
+// rooms.rs:leave_room). Mid-game a leaving human's seat becomes a bot, so the
+// label is a plain "Leave" there. A two-tap confirm guards against accidental
+// taps near the Play/Pass action bar.
+function myIsCreator() {
+  if (!state || playerId === null) return false;
+  const players = Array.isArray(state.players) ? state.players : Object.values(state.players);
+  const me = players.find(p => p && p.id === playerId);
+  return !!(me && me.isCreator);
+}
+
+function renderMenuDrawer() {
+  const codeEl = document.getElementById('menu-drawer-code');
+  const leaveBtn = document.getElementById('menu-leave-btn');
+  const leaveLabel = document.getElementById('menu-leave-label');
+  const leaveSub = document.getElementById('menu-leave-sub');
+  if (!codeEl || !leaveBtn) return;
+
+  // Room code + copy availability.
+  codeEl.textContent = roomCode || '—';
+  document.getElementById('menu-copy-btn').disabled = !roomCode;
+
+  // Leave vs Close, per the server's semantics.
+  const inLobby = state && state.phase === 'lobby';
+  const canClose = inLobby && isPublic && myIsCreator();
+  if (canClose) {
+    leaveLabel.textContent = 'Close Room';
+    leaveSub.textContent = 'Dissolves this room for everyone.';
+    leaveBtn.classList.add('danger');
+  } else {
+    leaveLabel.textContent = 'Leave Room';
+    leaveSub.textContent = inLobby
+      ? 'Your seat is released; others can keep the room.'
+      : 'Your seat becomes a bot and the game continues.';
+    leaveBtn.classList.remove('danger');
+  }
+  // Reset the two-tap confirm whenever the context changes.
+  leaveBtn.classList.remove('confirming');
+}
+
+export function openMenuDrawer() {
+  const drawer = document.getElementById('menu-drawer');
+  const backdrop = document.getElementById('menu-drawer-backdrop');
+  if (!drawer) return;
+  renderMenuDrawer(); // refresh label + code on every open
+  drawer.classList.add('open');
+  if (backdrop) backdrop.classList.add('open');
+}
+
+export function closeMenuDrawer() {
+  const drawer = document.getElementById('menu-drawer');
+  const backdrop = document.getElementById('menu-drawer-backdrop');
+  if (drawer) drawer.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('open');
+}
+
+export function toggleMenuDrawer() {
+  const drawer = document.getElementById('menu-drawer');
+  if (drawer && drawer.classList.contains('open')) closeMenuDrawer();
+  else openMenuDrawer();
+}
+
+// Copy the room code to the clipboard. `navigator.clipboard` requires a secure
+// context + focus; on the dev server (http) we fall back to an execCommand
+// textarea so it works in the plain-localhost case too.
+window.__app_copyRoomCode = async () => {
+  if (!roomCode) return false;
+  const btn = document.getElementById('menu-copy-btn');
+  const flash = (ok) => {
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = ok ? '✓ Copied' : 'Copy';
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  };
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(roomCode);
+      flash(true);
+      return true;
+    }
+  } catch { /* fall through to the legacy path */ }
+  // Legacy fallback (works over plain http on localhost).
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = roomCode;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    flash(ok);
+    return ok;
+  } catch {
+    flash(false);
+    return false;
+  }
+};
+
+// Two-tap confirm on the leave/close button: first tap arms it ("Confirm?"),
+// a second tap within 3s fires. Any re-render or leaving the drawer disarms.
+window.__app_confirmLeave = () => {
+  const btn = document.getElementById('menu-leave-btn');
+  if (!btn) return;
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    document.getElementById('menu-leave-label').textContent = 'Tap Again to Confirm';
+    btn.__confirmTimer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      renderMenuDrawer();
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn.__confirmTimer);
+  window.__app_leaveRoom();
+};
+
 
 function updatePlayButton() {
   if (!state) return;

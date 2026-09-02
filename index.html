@@ -270,6 +270,83 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #sheet-log .log-entry .bot { color: #64b5f6; }
 #sheet-log:empty::after { content: 'Log masih kosong — main dulu dong.'; color: #556; font-style: italic; }
 
+/* ── Menu drawer (top-right hamburger, every viewport) ──────────────────
+   The room's "meta" home: room code + copy, and leave/close. Slides in from
+   the right like a nav drawer. z-stacking: hamburger 104 < backdrop 105 <
+   drawer 106 — all above the action bar (100) and game-over overlay (90),
+   all below the drag follower (9999). */
+#menu-toggle-btn {
+  display: none;
+  position: fixed;
+  top: calc(4px + env(safe-area-inset-top, 0px));
+  right: 8px;
+  width: 44px; height: 44px;
+  align-items: center; justify-content: center;
+  background: #0f3460; color: #c9d1d9;
+  border: 1px solid #1a4a7a; border-radius: 8px;
+  font-size: 18px; line-height: 1;
+  cursor: pointer; z-index: 104;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+#menu-toggle-btn.visible { display: flex; }
+#menu-toggle-btn:hover { background: #1a4a7a; color: #fff; }
+#menu-toggle-btn:active { transform: scale(0.95); }
+
+/* Desktop: the fixed hamburger floats in the top-right corner of the header,
+   so reserve that corner and nudge the header's .controls (the sidebar-toggle
+   ☰ + the now-hidden room-code) left of it. On mobile .controls is empty, so
+   this margin is invisible there. */
+#header .controls { margin-right: 56px; }
+
+#menu-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 105; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+#menu-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+#menu-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(320px, 86vw);
+  background: #16213e; border-left: 2px solid #0f3460;
+  transform: translateX(105%); visibility: hidden;
+  transition: transform 0.25s ease, visibility 0s linear 0.25s;
+  z-index: 106; display: flex; flex-direction: column;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+  overscroll-behavior: contain;
+}
+#menu-drawer.open { transform: translateX(0); visibility: visible; transition: transform 0.25s ease; }
+#menu-drawer-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid #0f3460; flex-shrink: 0; }
+#menu-drawer-header h3 { margin: 0; font-size: 16px; color: #e94560; }
+#menu-drawer-close { background: none; border: none; color: #cdd6e0; font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 6px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+#menu-drawer-close:hover { color: #fff; }
+
+#menu-drawer-room { padding: 14px 0; border-bottom: 1px solid #0f3460; }
+#menu-drawer-room .menu-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8899aa; margin-bottom: 6px; }
+#menu-drawer-room .menu-code-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#menu-drawer-code { font-family: monospace; font-size: 24px; letter-spacing: 5px; color: #ffd700; font-weight: 700; }
+#menu-copy-btn { padding: 7px 14px; background: #0f3460; color: #c9d1d9; border: 1px solid #1a4a7a; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; min-height: 32px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+#menu-copy-btn:hover:not(:disabled) { background: #1a4a7a; color: #fff; }
+#menu-copy-btn:disabled { opacity: 0.4; cursor: default; }
+
+#menu-drawer-leave { padding-top: 16px; }
+#menu-leave-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 100%; padding: 12px 10px; min-height: 58px;
+  background: #2a3a5c; color: #fff; border: 1px solid #34456b; border-radius: 10px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+#menu-leave-btn:hover { background: #34456b; }
+#menu-leave-btn .menu-leave-title { font-size: 15px; font-weight: 700; }
+#menu-leave-btn .menu-leave-sub { font-size: 11px; color: #aab6c8; }
+#menu-leave-btn.danger { background: #7a1f2b; border-color: #a02334; }
+#menu-leave-btn.danger:hover { background: #93242f; }
+#menu-leave-btn.confirming { background: #b3202f; border-color: #e94560; animation: leave-pulse 0.8s ease-in-out infinite; }
+@keyframes leave-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(233,69,96,0.5); } 50% { box-shadow: 0 0 0 6px rgba(233,69,96,0); } }
+
+/* Short landscape (phone landscape / short desktop window): the 50px header
+   shrinks to 36px, so the fixed hamburger shrinks to fit its band. */
+@media (max-height: 560px) and (orientation: landscape) {
+  #menu-toggle-btn { width: 34px; height: 28px; top: calc(3px + env(safe-area-inset-top, 0px)); right: 6px; font-size: 15px; border-radius: 6px; }
+}
+
 /* Game over overlay */
 #gameover-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 90; }
 #gameover-overlay.show { display: flex; }
@@ -1043,8 +1120,34 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 </div>
 <div id="sheet-backdrop" onclick="closeLogSheet()"></div>
 
+<!-- Menu drawer: the room's "meta" home (room code + copy, leave/close).
+     Opened from the top-right hamburger (#menu-toggle-btn), present in every
+     viewport. z-stacking: hamburger 104 < backdrop 105 < drawer 106, all above
+     the action bar (100) and game-over overlay (90). -->
+<button id="menu-toggle-btn" onclick="toggleMenuDrawer()" title="Menu" aria-label="Open menu" aria-haspopup="dialog">&#9776;</button>
+<div id="menu-drawer" role="dialog" aria-label="Room menu" aria-modal="false">
+  <div id="menu-drawer-header">
+    <h3>Menu</h3>
+    <button id="menu-drawer-close" onclick="closeMenuDrawer()" aria-label="Close menu">&times;</button>
+  </div>
+  <div id="menu-drawer-room">
+    <span class="menu-label">Room Code</span>
+    <div class="menu-code-row">
+      <span id="menu-drawer-code">&mdash;</span>
+      <button id="menu-copy-btn" onclick="__app_copyRoomCode()" disabled>Copy</button>
+    </div>
+  </div>
+  <div id="menu-drawer-leave">
+    <button id="menu-leave-btn" onclick="__app_confirmLeave()">
+      <span class="menu-leave-title" id="menu-leave-label">Leave Room</span>
+      <span class="menu-leave-sub" id="menu-leave-sub"></span>
+    </button>
+  </div>
+</div>
+<div id="menu-drawer-backdrop" onclick="closeMenuDrawer()"></div>
+
 <script type="module">
-import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, refreshRoomList, sortHand, playCards, selectCard, passTurn, toggleSidebar, nextRound, playAgain, openLogSheet, closeLogSheet, toggleLogSheet, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
+import { handleCreateRoom, handleJoinRoom, handleBrowseRooms, refreshRoomList, sortHand, playCards, selectCard, passTurn, toggleSidebar, nextRound, playAgain, openLogSheet, closeLogSheet, toggleLogSheet, openMenuDrawer, closeMenuDrawer, toggleMenuDrawer, initClient, showLobbyScreen, getSTATE, getPlayerId, injectServerMessage } from './src/app.js';
 
 console.log('[INIT] Modules loaded successfully');
 
@@ -1061,8 +1164,19 @@ window.toggleSidebar = toggleSidebar;
 window.openLogSheet = openLogSheet;
 window.closeLogSheet = closeLogSheet;
 window.toggleLogSheet = toggleLogSheet;
+window.openMenuDrawer = openMenuDrawer;
+window.closeMenuDrawer = closeMenuDrawer;
+window.toggleMenuDrawer = toggleMenuDrawer;
 window.nextRound = nextRound;
 window.playAgain = playAgain;
+
+// Esc closes the menu drawer (parity with the log sheet's one-tap dismiss).
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const drawer = document.getElementById('menu-drawer');
+    if (drawer && drawer.classList.contains('open')) closeMenuDrawer();
+  }
+});
 
 // Test hooks for Playwright E2E (see e2e/ directory)
 window.__app_getState = getSTATE;
