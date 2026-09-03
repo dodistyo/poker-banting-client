@@ -84,17 +84,23 @@ test.describe('PWA', () => {
     // The shell is versioned: a stale SW with an old cache name is evicted
     // on activate. We can't bump the constant mid-test, but we can verify
     // the activate handler keeps only the current version's caches.
+    // The expected version is read from the served sw.js (CACHE_VERSION),
+    // so bumping the constant does not require editing this test.
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await page.goto('/');
     const info = await page.evaluate(async () => {
+      const swSrc = await (await fetch('/sw.js')).text();
+      const m = swSrc.match(/const CACHE_VERSION = "([^"]+)"/);
+      const version = m ? m[1] : null;
       await navigator.serviceWorker.ready;
       const keys = await caches.keys();
-      return { keys };
+      return { version, keys };
     });
-    // Only the current version's caches should exist (pb-static-pb-v1,
-    // pb-runtime-pb-v1). No orphans from earlier versions.
-    expect(info.keys.every((k) => k.includes('pb-v1')),
+    expect(info.version, 'CACHE_VERSION must be declared in sw.js').toBeTruthy();
+    // Only the current version's caches should exist (pb-static-<v>,
+    // pb-runtime-<v>). No orphans from earlier versions.
+    expect(info.keys.every((k) => k.includes(info.version)),
       `only current-version caches should remain, got: ${info.keys}`).toBe(true);
     await ctx.close();
   });

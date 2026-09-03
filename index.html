@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Poker Banting</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#16213e">
@@ -94,7 +94,12 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
    keeps a min-height:auto, so a tall hand (13 cards on the side seats) blows
    the grid past the viewport on short/landscape windows and the hand + action
    bar end up below the fold. */
-#app { display: grid; grid-template-columns: 1fr 260px; grid-template-rows: 50px minmax(0, 1fr); height: 100vh; height: 100dvh; }
+/* viewport-fit=cover: in a standalone PWA the layout viewport is edge-to-edge,
+   so 100dvh spans the WHOLE physical screen (under the status bar and the
+   home-indicator area). Insetting the grid by the safe-area values keeps the
+   header clear of the notch and the bottom strip clear of the home bar. In
+   the browser the env() values are 0 — layout is unchanged. */
+#app { display: grid; grid-template-columns: 1fr 260px; grid-template-rows: 50px minmax(0, 1fr); height: 100vh; height: 100dvh; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 #header { grid-column: 1 / -1; background: #16213e; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 2px solid #0f3460; position: relative; }
 #header h1 { color: #e94560; font-size: 20px; }
 #header .controls { display: flex; gap: 8px; align-items: center; }
@@ -461,7 +466,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #app, #app.no-sidebar {
     grid-template-columns: 1fr;
     grid-template-rows: 48px 1fr auto;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
     overflow: visible;
   }
   #header { padding: 0 8px; }
@@ -497,7 +501,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     justify-content: center;
     gap: 5px;
     width: calc(100% - 16px);
-    margin: 3px 8px calc(5px + env(safe-area-inset-bottom, 0px));
+    margin: 3px 8px 5px;
     padding: 5px 10px;
     background: #0f3460;
     color: #c9d1d9;
@@ -539,7 +543,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   }
   .player-area.pos-bottom {
     grid-row: 3; grid-column: 1 / -1;
-    padding: 4px 4px calc(46px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 4px 46px;
     overflow: visible;
   }
   .player-area.pos-left {
@@ -642,7 +646,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
   /* Action bar: centered pill above sidebar */
   #action-bar {
-    bottom: calc(46px + env(safe-area-inset-bottom, 0px));
+    bottom: 46px;
     left: 50%;
     right: auto;
     transform: translateX(-50%);
@@ -701,7 +705,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #sidebar-toggle-btn { display: none; }
 
   #sidebar {
-    position: fixed; bottom: 0; left: 0; right: 0;
+    position: fixed; bottom: env(safe-area-inset-bottom, 0px); left: 0; right: 0;
     border-left: none; border-top: 2px solid #0f3460;
     flex-direction: column;
     z-index: 50;
@@ -721,7 +725,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     gap: 5px;
     width: calc(100% - 16px);
     max-width: 340px;
-    margin: 3px auto calc(5px + env(safe-area-inset-bottom, 0px));
+    margin: 3px auto 5px;
     padding: 5px 10px;
     background: #0f3460;
     color: #c9d1d9;
@@ -743,7 +747,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     grid-template-columns: 48px 1fr 48px;
     /* Reserve space for the fixed bottom score strip so the hand + action bar
        aren't hidden under it. */
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 80px;
     overflow: visible;
   }
   .player-area.pos-top {
@@ -841,7 +845,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   }
 
   #action-bar {
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%);
+    bottom: 84px; left: 50%; right: auto; transform: translateX(-50%);
     padding: 6px 8px; gap: 6px;
     width: calc(100% - 8px);
     max-width: calc(100vw - 8px);
@@ -898,7 +902,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     gap: 5px;
     width: calc(100% - 12px);
     max-width: 300px;
-    margin: 2px auto calc(4px + env(safe-area-inset-bottom, 0px));
+    margin: 2px auto 4px;
     padding: 3px 10px;
     background: #0f3460;
     color: #c9d1d9;
@@ -929,7 +933,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card.face-down::after,
   .hand-right .card.face-down::after { font-size: 10px; }
-  #action-bar { padding: 4px 6px; gap: 4px; bottom: calc(63px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
+  #action-bar { padding: 4px 6px; gap: 4px; bottom: 63px; left: 50%; right: auto; transform: translateX(-50%); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
   #action-bar-buttons { flex-wrap: wrap; justify-content: stretch; gap: 4px; width: 100%; }
   #action-bar button { padding: 6px 10px; font-size: 11px; min-height: 32px; min-width: 44px; flex: 1 1 auto; }
   #center-cards { min-height: 36px; }
@@ -964,7 +968,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .player-label .turn-badge, .player-label .bot-badge, .player-label .finished-badge { font-size: 8px; padding: 1px 4px; }
   #center-info { font-size: 10px; }
   .pass-tag { font-size: 9px; padding: 1px 6px; }
-  #action-bar { padding: 4px 6px; gap: 4px; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(46px + env(safe-area-inset-bottom, 0px)); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
+  #action-bar { padding: 4px 6px; gap: 4px; left: 50%; right: auto; transform: translateX(-50%); bottom: 46px; z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
   #action-bar-buttons { flex-wrap: wrap; justify-content: stretch; gap: 4px; width: 100%; }
   #action-bar button { padding: 6px 10px; font-size: 12px; min-height: 40px; flex: 1 1 auto; }
   /* No max-height on the sidebar: the 2-row strip (name+points chips above,
