@@ -45,5 +45,22 @@ test('rejoin after reload restores the same seat', async ({ page }) => {
     return s?.players?.[pid]?.name;
   });
   expect(myName).toBe('Dodi');
+  // Regression: opponent hands must carry a real handCount on the rejoin
+  // wire. The server used to round-trip the personalised state through the
+  // GameState struct (no handCount field), dropping the count — the client
+  // then fell back to hand.length === 0 and every opponent rendered
+  // "0 cards" after a refresh. The live table before the reload proves the
+  // counts were >0 at that moment, so a 0 after rejoin is a state loss.
+  const oppCounts = await page.evaluate(() => {
+    const s = window.__app_getState();
+    const pid = window.__app_getPlayerId?.() ?? 0;
+    return (s?.players || [])
+      .filter(p => p.id !== pid)
+      .map(p => p.handCount ?? (p.hand ? p.hand.length : 0));
+  });
+  expect(oppCounts.length).toBe(3);
+  for (const c of oppCounts) {
+    expect(c, `opponent handCount must be >0 after rejoin, got ${c}`).toBeGreaterThan(0);
+  }
   await watch(page, 2000); // viewer: back on the table
 });
