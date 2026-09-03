@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v2"; // bump on every release (v2: PWA safe-area/viewport-fit fix)
+const CACHE_VERSION = "pb-v3"; // bump on every release (v3: manual rejoin + swipe-to-play shell)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 
