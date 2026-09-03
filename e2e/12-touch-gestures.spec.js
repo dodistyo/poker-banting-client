@@ -196,3 +196,68 @@ test('mobile viewport: gestures armed + hint visible on your turn', async ({ pag
   await expect(hint).toBeHidden();
   await expect(page.locator('#center-cards')).not.toHaveClass(/play-dropzone/);
 });
+
+// Regression (drag flicker): a state frame arriving while a card is held
+// down used to re-run performHandSizing() → change #table-area paddingBottom
+// (action bar show/hide) → shift the grid row the hand sits in → the fan
+// jumped under the pointer-tracked drag follower. The sizing pass must now
+// be skipped for the whole duration of a drag, then re-apply on release.
+test('drag is layout-stable across a mid-drag state frame (no flicker)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 }); // phone portrait
+  await startTurn(page);
+
+  // Let the initial sizing pass (rAF) land so the baseline is the real one.
+  await page.waitForTimeout(120);
+  const padBefore = await page.evaluate(() =>
+    getComputedStyle(document.getElementById('table-area')).paddingBottom);
+
+  const from = await cardCenter(page, 0);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 8, from.y + 8, { steps: 2 }); // arm the drag
+  await page.waitForTimeout(50);
+
+  // Capture the exact layout while the drag is live.
+  const handBoxBefore = await page.locator('.hand-bottom').boundingBox();
+
+  // The repro: a state frame while the finger is still down. Switching the
+  // turn to a bot would hide the action bar (different bottom clearance) —
+  // pre-fix that changed paddingBottom and repositioned the hand mid-drag.
+  await page.evaluate((s) => window.__app_injectMessage({
+    type: 'state',
+    state: s,
+  }), makeServerState({ currentPlayer: 1, hands }));
+  await page.waitForTimeout(120); // let the rAF sizing pass run — it must skip
+
+  // (1) The bottom clearance the fan is laid out against is untouched.
+  const padDuring = await page.evaluate(() =>
+    getComputedStyle(document.getElementById('table-area')).paddingBottom);
+  expect(padDuring).toBe(padBefore);
+
+  // (2) …and so is the hand's own position: the fan didn't jump under the
+  //     pointer-tracked follower (that was the flicker).
+  const handBoxDuring = await page.locator('.hand-bottom').boundingBox();
+  expect(Math.abs(handBoxDuring.y - handBoxBefore.y)).toBeLessThan(1);
+  expect(Math.abs(handBoxDuring.x - handBoxBefore.x)).toBeLessThan(1);
+
+  // Release over the hand (no play) → sizing runs again. The clearance must
+  // stay at the SAME value (the action bar keeps its layout box, so the bar
+  // being hidden no longer changes it) and the fan must actually re-lay out —
+  // the skip during the drag was temporary, not a stranded layout.
+  const handRight = await page.locator('#hand-0 .card').nth(3).boundingBox();
+  await page.mouse.move(handRight.x + handRight.width / 2, handRight.y + handRight.height / 2, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+  const padAfter = await page.evaluate(() =>
+    getComputedStyle(document.getElementById('table-area')).paddingBottom);
+  expect(padAfter).toBe(padBefore);
+  // Fan re-laid out (not stuck on the last skipped pass): ready flag set and a
+  // card carries an explicit fan position.
+  const reflowed = await page.evaluate(() => {
+    const hand = document.querySelector('.hand-bottom');
+    const card = hand && hand.querySelector(':scope > .card');
+    return { ready: !!(hand && hand.dataset.ready), cardLeft: card ? card.style.left : '' };
+  });
+  expect(reflowed.ready).toBe(true);
+  expect(reflowed.cardLeft).not.toBe('');
+});

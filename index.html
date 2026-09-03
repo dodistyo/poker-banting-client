@@ -257,8 +257,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .pass-tag { font-size: 11px; color: #ff8a80; background: rgba(255,0,0,0.1); padding: 1px 8px; border-radius: 8px; }
 
 /* Action bar */
-#action-bar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; z-index: 100; background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 10px; max-width: calc(100% - 16px); }
-#action-bar.visible { display: flex; }
+#action-bar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; z-index: 100; background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 10px; max-width: calc(100% - 16px); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.15s ease, visibility 0s linear 0.15s; }
+/* Hidden = fade out, box KEPT: performHandSizing() measures this bar for the
+   table's bottom clearance, so collapsing it to display:none on every
+   state frame (turn cycling, bot discards) made the hand jump up and down
+   mid-drag. visibility:hidden stays invisible + non-interactive but keeps
+   the layout box, so the clearance is stable. */
+#action-bar.visible { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.15s ease, visibility 0s; }
 /* Action bar — buttons only. The combo preview + error text live in
    #turn-hint in the table center (see #center-area), same as mobile, so
    this bar never changes width when text appears/disappears (no jitter). */

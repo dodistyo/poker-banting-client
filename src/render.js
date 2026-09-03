@@ -344,7 +344,13 @@ export function render(state) {
         cardEl.dataset.idx = idx;
         if (!hideCards) {
           const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-          const expectedClass = 'card ' + (isRed ? 'red' : 'black') + (card.selected ? ' selected' : '');
+          let expectedClass = 'card ' + (isRed ? 'red' : 'black') + (card.selected ? ' selected' : '');
+          // Mid-drag: this seat is being mutated in place. Keep the drag
+          // markers (placeholder on the source, target highlight on the drop
+          // slot) alive through the rebuild — wiping them would both break the
+          // sizing guards and reset the highlight mid-gesture.
+          if (cardEl.classList.contains('drag-placeholder')) expectedClass += ' drag-placeholder';
+          if (cardEl.classList.contains('drag-target')) expectedClass += ' drag-target';
           if (cardEl.className !== expectedClass) cardEl.className = expectedClass;
         }
         fragment.appendChild(cardEl);
@@ -433,7 +439,13 @@ function renderActionBar(state) {
   if (gestureHint) gestureHint.style.display = (isMyTurn && gameStarted) ? '' : 'none';
 
   if (state.gameOver || !isMyTurn || !gameStarted) {
+    // Hiding = fade out, NOT display:none: the bar keeps its layout box so
+    // performHandSizing() measures a stable clearance. A per-frame state
+    // update (bots discarding 3s, turn cycling) flipping display:none ↔
+    // flex changed the table's padding-bottom every frame, which repositioned
+    // the whole hand — the "blink" under a touch drag.
     actionBar.classList.remove('visible');
+    actionBar.classList.add('hidden');
     const btnSort = document.getElementById('btn-sort');
     if (btnSort) btnSort.disabled = true;
     // The turn hint now lives in the always-visible table center (it used to
@@ -446,6 +458,7 @@ function renderActionBar(state) {
     if (errorMsg) errorMsg.textContent = '';
   } else {
     actionBar.classList.add('visible');
+    actionBar.classList.remove('hidden');
     const btnSort = document.getElementById('btn-sort');
     if (btnSort) btnSort.disabled = false;
     if (state.updatePlayButton) state.updatePlayButton();
@@ -582,6 +595,14 @@ export function adjustHandSizing() {
 function performHandSizing() {
   sizingRAFId = null;
 
+  // Mid-drag: the hand is being mutated in place; do NOT re-flow any fan or
+  // change the table's bottom clearance. The drag follower lives on <body>
+  // (tracks the pointer), the placeholder lives inside the hand container.
+  // Shifting the container (via paddingBottom → grid row shift) disconnects
+  // them → the hand "jumps" under the dragged card. Skip the entire re-layout;
+  // it re-runs on the next non-drag frame.
+  if (document.querySelector('.drag-placeholder')) return;
+
   // Set paddingBottom on table-area for mobile to clear action bar + sidebar
   const tableArea = document.getElementById('table-area');
   if (!tableArea) return;
@@ -594,7 +615,11 @@ function performHandSizing() {
   const sidebar = document.getElementById('sidebar');
   const actionBar = document.getElementById('action-bar');
   const sidebarHeight = sidebar ? sidebar.offsetHeight : 60;
-  const actionBarHeight = actionBar && actionBar.classList.contains('visible') ? actionBar.offsetHeight : 44;
+  // The action bar always keeps its layout box (display:flex; opacity/
+  // visibility toggled via .visible), so offsetHeight is stable regardless of
+  // whether the bar is "shown". Measuring it unconditionally keeps the table's
+  // bottom clearance constant across turn changes — no per-frame grid shift.
+  const actionBarHeight = actionBar ? actionBar.offsetHeight : 44;
   const clearance = sidebarHeight + actionBarHeight + 4;
   tableArea.style.paddingBottom = isMobile ? (clearance + 'px') : '';
 
