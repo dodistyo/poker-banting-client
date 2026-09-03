@@ -30,13 +30,19 @@ function serveFile(res, filePath) {
   // precache and break offline). Freshness is still guaranteed: the SW
   // serves navigations network-first and SWR-refreshes static assets, and
   // the shell is versioned by CACHE_VERSION in sw.js (bump on release).
+  //
+  // BUT the SW *script itself* is served no-cache: the spec requires it,
+  // and a stale-cached sw.js (we hit this behind the Cloudflare tunnel —
+  // it got a 4h max-age) means a new CACHE_VERSION never loads, so the
+  // old shell (old layout, old icons) keeps serving forever.
   // HTML stays no-cache (revalidate) so the lobby always re-checks the
   // server before trusting a cached page.
   const isHtml = ext === ".html";
+  const isSw = filePath.endsWith("sw.js");
   res.writeHead(200, {
     "Content-Type": MIME[ext] || "application/octet-stream",
     "Content-Length": stats.size,
-    "Cache-Control": isHtml ? "no-cache" : "public, max-age=3600",
+    "Cache-Control": isSw || isHtml ? "no-cache" : "public, max-age=3600",
   });
   fs.createReadStream(filePath).pipe(res);
 }
