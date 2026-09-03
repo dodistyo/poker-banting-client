@@ -324,13 +324,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #menu-toggle-btn {
   display: none;
   position: fixed;
-  top: calc(3px + env(safe-area-inset-top, 0px));
+  top: calc(5px + env(safe-area-inset-top, 0px));
   right: 12px;
-  width: 44px; height: 44px;
+  width: 40px; height: 40px;
   align-items: center; justify-content: center;
   background: #0f3460; color: #c9d1d9;
   border: 1px solid #1a4a7a; border-radius: 8px;
-  font-size: 18px; line-height: 1;
+  font-size: 17px; line-height: 1;
   cursor: pointer; z-index: 104;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
@@ -471,7 +471,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 @media (max-width: 768px) and (orientation: portrait) {
   #app, #app.no-sidebar {
     grid-template-columns: 1fr;
-    grid-template-rows: 52px 1fr auto;
+    grid-template-rows: 48px 1fr auto;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     overflow: visible;
   }
@@ -479,11 +479,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   #header h1 { font-size: 14px; }
   #header button { padding: 3px 10px; font-size: 11px; }
   #sidebar-toggle-btn { display: none; }
-  /* Mobile header row is 52px so the 44px hamburger floats inside the band
-     with equal 4px margins top/bottom instead of being glued flush to the
-     top edge (44px row + 44px button = zero breathing room). Base right is
-     12px; base top is 3px (50px desktop header) so re-pin it at 4px here. */
-  #menu-toggle-btn { top: calc(4px + env(safe-area-inset-top, 0px)); }
+  /* Mobile header row is 48px so the 40px hamburger floats inside the band
+     with a tight 4px margin top/bottom (equal). Base top is 5px (50px
+     desktop header → 5/5) so re-pin it at 4px here. */
+  #menu-toggle-btn { top: calc(4px + env(safe-area-inset-top, 0px)); right: 8px; }
 
   #sidebar {
     grid-column: 1 / -1;

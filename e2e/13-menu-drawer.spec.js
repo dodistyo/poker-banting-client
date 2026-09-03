@@ -222,7 +222,7 @@ test('mobile viewport: drawer is usable, code + copy + two-tap leave all present
   await expect(page.locator('#menu-copy-btn')).toBeVisible();
   await expect(page.locator('#menu-leave-btn')).toBeVisible();
   await expect(page.locator('#menu-leave-label')).toHaveText('Leave Room');
-  // Touch target big enough (>= 44px tall) for a finger.
+  // Touch target big enough (>= 40px tall) for a finger.
   const box = await page.locator('#menu-toggle-btn').boundingBox();
-  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(40);
 });
