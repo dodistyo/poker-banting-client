@@ -373,8 +373,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #menu-leave-btn:hover { background: #34456b; }
 #menu-leave-btn .menu-leave-title { font-size: 15px; font-weight: 700; }
 #menu-leave-btn .menu-leave-sub { font-size: 11px; color: #aab6c8; }
-#menu-leave-btn.danger { background: #7a1f2b; border-color: #a02334; }
-#menu-leave-btn.danger:hover { background: #93242f; }
 #menu-leave-btn.confirming { background: #b3202f; border-color: #e94560; animation: leave-pulse 0.8s ease-in-out infinite; }
 @keyframes leave-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(233,69,96,0.5); } 50% { box-shadow: 0 0 0 6px rgba(233,69,96,0); } }
 
@@ -1070,7 +1068,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       </div>
       <button id="party-ready-btn" class="lobby-submit-btn" onclick="window.__app_toggleReady()" style="display:none;box-shadow:none;">Ready</button>
       <button id="party-start-btn" class="lobby-submit-btn" onclick="window.__app_startGame()" style="display:none;">Start Game</button>
-      <button id="party-leave-btn" class="lobby-submit-btn" onclick="window.__app_leaveRoom()" style="background:#2a3a5c;margin-top:8px;box-shadow:none;">Leave</button>
+      <button id="party-leave-btn" class="lobby-submit-btn" onclick="window.__app_leaveRoom()" style="background:#555;margin-top:8px;box-shadow:none;">Leave</button>
     </div>
 
     <div id="lobby-error"></div>

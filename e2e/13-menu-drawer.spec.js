@@ -6,15 +6,16 @@
 //      deterministic, no bot timing.
 //   2. Real Rust server for the behavioral cases: hamburger show/hide per
 //      phase, a mid-game Leave that converts the seat to a bot while a second
-//      human keeps playing, and a creator "Close Room" that dissolves a public
+//      human keeps playing, and a creator Leave that dissolves a public
 //      room (waiting-room button — the dissolve is a lobby-only action).
 //
 // Label semantics (server-verified in rooms.rs):
-//   - Mid-game Leave (the drawer's reachable case): seat becomes a bot, the
-//     game continues for the remaining humans. Always "Leave Room".
-//   - Lobby "Close Room": creator of a PUBLIC room -> the room dissolves for
-//     everyone. Lives on the waiting-room screen (party-leave-btn), which the
-//     hamburger does not replace.
+//   - The leave button is always "Leave" / "Leave Room" in neutral grey.
+//     There is no "Close Room" label.
+//   - Dissolve behaviour (server-side, NOT a label): when the CREATOR of a
+//     PUBLIC room leaves during the lobby, the server dissolves the room for
+//     everyone (rooms.rs:leave_room). Mid-game a leaving human's seat becomes
+//     a bot and the game continues.
 import { test, expect } from '@playwright/test';
 import {
   makeServerState, makeHand, injectCreated, waitForPhase, watch,
@@ -74,16 +75,16 @@ test('mid-game drawer leave is "Leave Room" with the bot subtext', async ({ page
   await expect(page.locator('#menu-leave-btn')).not.toHaveClass(/danger/);
 });
 
-test('creator of a public room sees "Close Room" (danger) in the waiting room', async ({ page }) => {
-  // Lobby phase, creator (id 0), public -> the waiting-room leave button
-  // relabels to "Close Room" (dissolve) and turns red.
+test('creator of a public room sees neutral grey "Leave" in the waiting room', async ({ page }) => {
+  // Lobby phase, creator (id 0), public -> the waiting-room leave button is a
+  // plain grey "Leave" (no "Close Room" label; the dissolve is server-side).
   await page.goto('/');
   await injectCreated(page, makeServerState({ phase: 'lobby' }), { playerId: 0, code: 'CODE12' });
   await waitForPhase(page, 'lobby');
   await watch(page);
-  await expect(page.locator('#party-leave-btn')).toHaveText('Close Room');
+  await expect(page.locator('#party-leave-btn')).toHaveText('Leave');
   const bg = await page.locator('#party-leave-btn').evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toMatch(/rgb\(122,\s*31,\s*43\)/); // #7a1f2b
+  expect(bg).toMatch(/rgb\(85,\s*85,\s*85\)/); // #555 grey
 });
 
 test('non-creator in the waiting room sees plain "Leave"', async ({ page }) => {
@@ -193,13 +194,14 @@ test('real server: mid-game Leave turns the seat into a bot, the other human con
   await ctxB.close();
 });
 
-test('real server: creator "Close Room" (waiting room) dissolves the public room', async ({ page }) => {
+test('real server: creator "Leave" (waiting room) dissolves the public room', async ({ page }) => {
   await createRoomViaUI(page, 'Dodi');
   const code = (await page.locator('#party-code').textContent()).trim();
   expect(code).toMatch(/^[A-Z0-9]{6}$/);
 
-  // Public + creator -> the waiting-room button reads "Close Room".
-  await expect(page.locator('#party-leave-btn')).toHaveText('Close Room');
+  // Public + creator -> the waiting-room button reads plain "Leave" (the
+  // dissolve is server-side, not a label).
+  await expect(page.locator('#party-leave-btn')).toHaveText('Leave');
 
   // Single tap on the waiting-room button (it is NOT two-tap; the two-tap
   // confirm is a drawer-only protection for mid-game leaves).

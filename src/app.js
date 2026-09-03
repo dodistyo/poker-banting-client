@@ -6,10 +6,12 @@ import { saveSession, loadSession, clearSession } from './session.js';
 let state = null;
 let playerId = null;
 let roomCode = null;
-// True when the room this session belongs to is public. Only the CREATOR of a
-// PUBLIC room in the lobby gets "Close Room" (the server dissolves the room
-// when its public-lobby creator leaves — see rooms.rs:leave_room); every other
-// situation is a plain "Leave" (mid-game, a leaving human's seat becomes a bot).
+// True when the room this session belongs to is public. The creator of a
+// PUBLIC room in the lobby dissolves the room when leaving (see
+// rooms.rs:leave_room) — mid-game, a leaving human's seat becomes a bot.
+// UI note: the button is always labelled "Leave" / "Leave Room" in neutral
+// grey; the dissolve behaviour is server-side, not something we advertise
+// in the label.
 let isPublic = false;
 // The client hand is a projection of the server hand, which is ALWAYS in
 // deal order. So any client-side reorder (Sort, or a manual drag) reverts on
@@ -485,15 +487,13 @@ function renderPartyScreen() {
   const isCreator = myIdx !== -1 && players[myIdx].isCreator;
   const myReady = state.ready && state.ready[myIdx];
 
-  // The waiting room's leave button doubles as "close" for the one case the
-  // server actually dissolves the room: the creator of a public room (see
-  // rooms.rs:leave_room). Mid-game there is no such thing as closing — a
-  // leaving seat just becomes a bot — so only the waiting room labels it.
+  // Always a neutral grey "Leave". For the creator of a public room the
+  // server additionally dissolves the room (rooms.rs:leave_room) — that is
+  // behaviour, not label: the button reads the same for everyone.
   const leaveBtnEl = document.getElementById('party-leave-btn');
   if (leaveBtnEl) {
-    const isClose = isCreator && isPublic;
-    leaveBtnEl.textContent = isClose ? 'Close Room' : 'Leave';
-    leaveBtnEl.style.background = isClose ? '#7a1f2b' : '#2a3a5c';
+    leaveBtnEl.textContent = 'Leave';
+    leaveBtnEl.style.background = '#555';
   }
 
   // Multi-round sessions: the header shows the running round number so the
@@ -881,11 +881,11 @@ export function toggleLogSheet() {
 // in the header's #room-code-header span; it moved here so it is reachable on
 // mobile (where the header is cramped) as well as desktop.
 //
-// Leave vs Close: only the CREATOR of a PUBLIC room while still in the lobby
-// gets "Close Room" (the server dissolves the room in that case — see
-// rooms.rs:leave_room). Mid-game a leaving human's seat becomes a bot, so the
-// label is a plain "Leave" there. A two-tap confirm guards against accidental
-// taps near the Play/Pass action bar.
+// The leave button always reads "Leave Room" in neutral grey. Only the
+// subtext differs for the one case the server dissolves the room: the creator
+// of a PUBLIC room while still in the lobby (see rooms.rs:leave_room).
+// Mid-game a leaving human's seat becomes a bot. A two-tap confirm guards
+// against accidental taps near the Play/Pass action bar.
 function myIsCreator() {
   if (!state || playerId === null) return false;
   const players = Array.isArray(state.players) ? state.players : Object.values(state.players);
@@ -904,20 +904,16 @@ function renderMenuDrawer() {
   codeEl.textContent = roomCode || '—';
   document.getElementById('menu-copy-btn').disabled = !roomCode;
 
-  // Leave vs Close, per the server's semantics.
+  // Always a neutral grey "Leave Room". The subtext explains the one case
+  // where the server dissolves the whole room (public-lobby creator).
   const inLobby = state && state.phase === 'lobby';
-  const canClose = inLobby && isPublic && myIsCreator();
-  if (canClose) {
-    leaveLabel.textContent = 'Close Room';
-    leaveSub.textContent = 'Dissolves this room for everyone.';
-    leaveBtn.classList.add('danger');
-  } else {
-    leaveLabel.textContent = 'Leave Room';
-    leaveSub.textContent = inLobby
+  const dissolves = inLobby && isPublic && myIsCreator();
+  leaveLabel.textContent = 'Leave Room';
+  leaveSub.textContent = dissolves
+    ? 'Dissolves this room for everyone.'
+    : inLobby
       ? 'Your seat is released; others can keep the room.'
       : 'Your seat becomes a bot and the game continues.';
-    leaveBtn.classList.remove('danger');
-  }
   // Reset the two-tap confirm whenever the context changes.
   leaveBtn.classList.remove('confirming');
 }
