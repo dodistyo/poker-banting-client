@@ -170,13 +170,11 @@ test('dropping an invalid card on the center shows the reason and plays nothing'
   expect(await sentPlays(page)).toHaveLength(0);
 });
 
-test('mobile viewport: gestures armed + hint visible on your turn', async ({ page }) => {
+test('mobile viewport: gestures armed on your turn', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); // phone portrait
   await startTurn(page);
 
-  // Gesture cheat line visible on mobile while it's the human's turn.
-  const hint = page.locator('#gesture-hint');
-  await expect(hint).toBeVisible();
+  // Drop zone armed on mobile while it's the human's turn.
   await expect(page.locator('#center-cards')).toHaveClass(/play-dropzone/);
 
   // Swipe-up works on mobile sizes too (cards are JS-scaled, ~20px tall).
@@ -188,12 +186,11 @@ test('mobile viewport: gestures armed + hint visible on your turn', async ({ pag
   await page.mouse.up();
   await expect(page.locator('#hand-0 .card').nth(1)).toHaveClass(/selected/);
 
-  // Gesture hint hides on the bot's turn.
+  // Drop zone disarms on the bot's turn.
   await page.evaluate((s) => window.__app_injectMessage({
     type: 'state',
     state: s,
   }), makeServerState({ currentPlayer: 1, hands }));
-  await expect(hint).toBeHidden();
   await expect(page.locator('#center-cards')).not.toHaveClass(/play-dropzone/);
 });
 

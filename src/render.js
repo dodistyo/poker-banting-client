@@ -458,12 +458,6 @@ function renderActionBar(state) {
   const dropZone = document.getElementById('center-cards');
   if (dropZone) dropZone.classList.toggle('play-dropzone', isMyTurn && gameStarted);
 
-  // Gesture hint (mobile only, CSS): shown while it's your turn so the three
-  // touch gestures are discoverable; hidden otherwise (also by CSS on
-  // desktop, where the mouse makes them optional).
-  const gestureHint = document.getElementById('gesture-hint');
-  if (gestureHint) gestureHint.style.display = (isMyTurn && gameStarted) ? '' : 'none';
-
   if (state.gameOver || !isMyTurn || !gameStarted) {
     // Hiding = fade out, NOT display:none: the bar keeps its layout box so
     // performHandSizing() measures a stable clearance. A per-frame state
@@ -778,32 +772,43 @@ function layoutOppFan(areaEl, pos) {
   // hand box — overflow is visible — but stays within the table's middle row).
   const bh = vertical ? Math.max(cellH, Math.round(bandH * 0.72)) : cellH;
 
-  let cardLong, cardShort, pitch;
-  if (vertical) {
-    // Spread axis = Y. Visual card after 90deg: cardLong wide × cardShort tall.
-    cardLong = Math.min(28, bw - 2);
-    cardShort = Math.round(cardLong * (20 / 28));
-    pitch = Math.min(Math.round(cardShort * 0.6), Math.floor((bh - cardShort) / Math.max(1, n - 1)));
-    pitch = Math.max(3, pitch);
-    let span = (n - 1) * pitch + cardShort;
-    const k = span > bh ? bh / span : 1;
-    cardShort = Math.max(6, Math.round(cardShort * k));
-    pitch = Math.max(2, Math.round(pitch * k));
-  } else {
-    // Spread axis = X. Card sits upright: cardShort wide × cardLong tall, and
-    // cardLong + arc rise must fit the row height.
-    cardLong = Math.min(28, Math.max(14, Math.floor(bh * 0.9)));
-    cardShort = Math.round(cardLong * (20 / 28));
-    pitch = Math.min(Math.round(cardShort * 0.6), Math.floor((bw - cardShort) / Math.max(1, n - 1)));
-    pitch = Math.max(3, pitch);
-    let span = (n - 1) * pitch + cardShort;
-    const k = span > bw ? bw / span : 1;
+  // One shared card size for ALL opponent seats — a top-vs-side mismatch was
+  // a visible cosmetic bug. The limiting dimension is the SIDE column's width:
+  // the side fans' visual width equals cardLong (after their 90deg base
+  // rotation), and the top row is always at least that wide (the grid gives
+  // the middle column 1fr), so the same card size always fits up top.
+  //
+  // Never cap by the top row's HEIGHT — that row is `auto`-sized to the fan,
+  // so reading it is circular (row tracks card, card caps to row → converges
+  // to a tiny 13x18 card), and it is order-dependent (layoutOppFan sizes the
+  // top before the sides, so each seat would measure a different DOM state).
+  // The side column width is a stable grid constant, so the result is
+  // deterministic for every seat in a given viewport.
+  const seatSide = document.getElementById('player-3');
+  const sideBw = seatSide
+    ? Math.max(10, Math.round(seatSide.clientWidth
+        - (parseFloat(getComputedStyle(seatSide).paddingLeft) || 0)
+        - (parseFloat(getComputedStyle(seatSide).paddingRight) || 0) - 2))
+    : 28;
+  const cardLong = Math.min(28, bw, sideBw);
+  let cardShort = Math.round(cardLong * (20 / 28));
+
+  // Spread axis length for THIS seat: side seats fan vertically (bounded by
+  // the column/band height `bh`), the top fans horizontally (bounded by `bw`).
+  const avail = vertical ? bh : bw;
+  let pitch = Math.min(Math.round(cardShort * 0.6), Math.floor((avail - cardShort) / Math.max(1, n - 1)));
+  pitch = Math.max(2, pitch);
+  let span = (n - 1) * pitch + cardShort;
+  // Overflow even at the densest pitch (tiny seat): scale the card down. Same
+  // formula for every seat, so the shared size is preserved.
+  if (span > avail) {
+    const k = avail / span;
     cardShort = Math.max(6, Math.round(cardShort * k));
     pitch = Math.max(2, Math.round(pitch * k));
   }
 
   const totalTilt = (n >= 10 ? 18 : n >= 5 ? 12 : 8) * Math.PI / 180;
-  const span = (n - 1) * pitch + cardShort;
+  span = (n - 1) * pitch + cardShort; // recompute after the overflow scale-down
   // R comes from the CENTER-TO-CENTER spread ((n-1)*pitch), not the full span
   // — the chord of the arc is between the outermost card centers.
   const spread = (n - 1) * pitch;
@@ -830,7 +835,11 @@ function layoutOppFan(areaEl, pos) {
       x = pos === 3
         ? (cw - 1 - cardLong / 2) - R * (1 - co)
         : (1 + cardLong / 2) + R * (1 - co);
-      rot = (pos === 3 ? 90 : -90) + th * 180 / Math.PI;
+      // LEFT (pos 3): rot = 90 + th. RIGHT (pos 1) is the horizontal mirror of
+      // LEFT — a mirror across the vertical axis negates the tilt term, so the
+      // right fan must use -90 - th (NOT -90 + th, which made its edges curl
+      // the wrong way and look ragged/stacked next to the tidy left fan).
+      rot = pos === 3 ? 90 + th * 180 / Math.PI : -90 - th * 180 / Math.PI;
     } else {
       x = cw / 2 + R * s; // spread horizontally
       y = (ch - 2 - cardLong / 2) - R * (1 - co); // center card lowest (bows down)

@@ -1023,8 +1023,6 @@ function updatePlayButton() {
 
   if (selected.length === 0) {
     btnPlay.disabled = true;
-    // Explain why Play is greyed out instead of leaving a dead button.
-    if (previewEl) previewEl.textContent = 'Pick 1 or 2 cards to play';
     return;
   }
 

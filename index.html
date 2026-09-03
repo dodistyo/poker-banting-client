@@ -161,9 +161,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 }
 .hand-top .card:first-child { margin-left: 0; }
 .hand-top .card .rank, .hand-top .card .suit { display: none; }
-.hand-top .card.face-down::after { transform: rotate(180deg); }
 .hand-left, .hand-right { flex-direction: column; flex-wrap: nowrap; gap: 0; justify-content: center; min-height: 0; }
-.hand-left .card.face-down::after { transform: rotate(180deg); }
 /* margin -8px (not -6px like .hand-top): the 90deg rotation is applied AFTER
    flex layout, so the negative margin collapses the pre-rotation layout box
    (40px tall) — only 2*margin - (boxH - boxW) reaches the visual card.
@@ -172,7 +170,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .hand-left .card.selected, .hand-right .card.selected { transform: rotate(90deg) translateY(-6px); }
 .hand-left .card .rank, .hand-left .card .suit,
 .hand-right .card .rank, .hand-right .card .suit { display: none; }
-.hand-right .card.face-down::after { transform: rotate(180deg); }
 /* Opponent fans: JS (layoutOppFan in render.js) absolutely positions every
    card in the top/left/right seats with inline left/top/width/height/
    transform, sized to the seat box. position:relative makes the hand box
@@ -222,28 +219,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* Center trick area: always a stable, sized drop target for the
    "drag & drop to play" gesture (drag a card here to play it). */
-#center-cards { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; min-height: 48px; min-width: 90px; }
 /* The drop zone lights up on your turn, and glows while a card is held over it. */
-#center-cards.play-dropzone { outline: 2px dashed rgba(255,215,0,0.30); outline-offset: 8px; border-radius: 10px; transition: outline-color 0.15s; }
-#center-cards.play-drop-active { outline: 2px dashed #ffd700; outline-offset: 8px; border-radius: 10px; box-shadow: 0 0 0 4px rgba(255,215,0,0.16), inset 0 0 28px rgba(255,215,0,0.14); }
-/* Touch-gesture cheat line (touch devices only): shown while it's your turn
-   so the three gestures are discoverable. flex-basis:100% wraps it to its own
-   row under the combo/error line instead of fighting for width. A portrait
-   phone is narrow (max-width) and a landscape phone is short (max-height);
-   both are touch. Desktop (wide AND tall) keeps it hidden. */
-#gesture-hint { display: none; flex-basis: 100%; color: #cfd8e3; font-size: 10px; opacity: 0.85; text-align: center; line-height: 1.3; }
-@media (max-width: 768px), (max-height: 500px) {
-  #gesture-hint { display: block; }
-}
-/* Short-height landscape (e.g. an 844x390 phone held sideways): the center
-   column is taller than its grid row, so the gesture cheat line overflows the
-   bottom of #center-area and collides with the bottom seat's player-label
-   ("Dodi · 13 · YOUR TURN"). The dashed drop zone + "pick your cards" prompt
-   already convey the play action there, so hide the line in that orientation
-   to keep the seat label legible. (Desktop/landscape > 500px tall is untouched.) */
-@media (max-height: 500px) and (orientation: landscape) {
-  #gesture-hint { display: none; }
-}
+#center-cards.play-dropzone { outline: 2px dashed rgba(255, 215, 0, 0.30); outline-offset: 2px; border-radius: 10px; }
+#center-cards.play-drop-active { outline: 2px dashed #ffd700; outline-offset: 4px; border-radius: 10px; box-shadow: 0 0 0 4px rgba(255,215,0,0.16), inset 0 0 28px rgba(255,215,0,0.14); }
 @keyframes cardTap {
   0% { scale: 1; }
   50% { scale: 0.92; }
@@ -257,10 +235,17 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .card.face-down::after { content: '\2660'; color: rgba(255,255,255,0.15); font-size: 18px; }
 
 /* Center play area */
-#center-area { grid-row: 2; grid-column: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
-#center-cards { display: flex; gap: 3px; min-height: 56px; min-width: 120px; align-items: center; justify-content: center; }
+/* #center-area holds ONLY the trick stack: the yellow trick/turn line, the
+   cards on the table, and the pass markers. No gesture or instruction
+   clutter — the dashed drop zone + the cards themselves are the "where do I
+   play" cue. (A #gesture-hint cheat line lived here before; it was removed
+   because it overlapped the drop zone and crowded the center on mobile.) */
+#center-area { grid-row: 2; grid-column: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+#center-cards { display: flex; gap: 4px; min-height: 64px; min-width: 140px; align-items: center; justify-content: center; }
 #center-info { font-size: 12px; color: #ffd700; text-align: center; min-height: 18px; }
+#center-info:empty { display: none; }
 #pass-markers { display: flex; gap: 6px; min-height: 18px; }
+#pass-markers:empty { display: none; }
 .pass-tag { font-size: 11px; color: #ff8a80; background: rgba(255,0,0,0.1); padding: 1px 8px; border-radius: 8px; }
 
 /* Action bar */
@@ -572,8 +557,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     justify-content: center;
   }
 
-  #center-area { grid-row: 2; grid-column: 2; gap: 2px; }
-  #center-cards { min-height: 44px; min-width: 80px; gap: 2px; }
+  #center-area { grid-row: 2; grid-column: 2; gap: 4px; }
+  /* Keep the drop zone generous on phones — a bigger target makes
+     drag-to-play way more forgiving on touch. */
+  #center-cards { min-height: 56px; min-width: 110px; gap: 3px; }
   #center-info { font-size: 10px; min-height: 14px; }
   #pass-markers { gap: 4px; min-height: 14px; }
 
@@ -596,7 +583,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-top .card { width: 20px; height: 28px; flex-shrink: 0; margin-left: -5px; }
   .hand-top .card:first-child { margin-left: 0; }
   .hand-top .card .rank, .hand-top .card .suit { display: none; }
-  .hand-top .card.face-down::after { font-size: 14px; transform: rotate(180deg); }
+  .hand-top .card.face-down::after { font-size: 14px }
 
   .hand-left, .hand-right {
     flex-direction: column;
@@ -624,7 +611,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-right .card .rank, .hand-right .card .suit { display: none; }
   .hand-left .card.face-down::after,
   .hand-right .card.face-down::after { font-size: 14px; }
-  .hand-right .card.face-down::after { transform: rotate(180deg); }
 
   /* Human hand: JS-scaled to always fit, no scroll */
   .hand-bottom {
@@ -789,7 +775,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-top .card { width: 20px; height: 28px; flex-shrink: 0; margin-left: -4px; }
   .hand-top .card:first-child { margin-left: 0; }
   .hand-top .card .rank, .hand-top .card .suit { display: none; }
-  .hand-top .card.face-down::after { font-size: 12px; transform: rotate(180deg); }
+  .hand-top .card.face-down::after { font-size: 12px }
 
   .hand-left, .hand-right { flex-direction: column; gap: 0; justify-content: center; overflow: visible; padding: 2px 0; }
   .hand-left .card, .hand-right .card {
@@ -806,7 +792,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-right .card .rank, .hand-right .card .suit { display: none; }
   .hand-left .card.face-down::after,
   .hand-right .card.face-down::after { font-size: 12px; }
-  .hand-right .card.face-down::after { transform: rotate(180deg); }
 
   .hand-bottom {
     flex-wrap: nowrap;
@@ -934,9 +919,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .card .rank { font-size: 9px; }
   .card .suit { font-size: 11px; }
   .card.face-down::after { font-size: 14px; }
-  .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; margin-left: -3px; }
+  .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; margin-left: -3px; min-width: 0; }
   .hand-top .card:first-child { margin-left: 0; }
-  .hand-top .card.face-down::after { font-size: 10px; transform: rotate(180deg); }
+  .hand-top .card.face-down::after { font-size: 10px }
   .hand-left, .hand-right { justify-content: center; gap: 0; }
   /* min-width:0 stops .card's min-width:32px from inflating the rotated box
      (else the 16px-wide card becomes a 32px-tall visual card, overlap 18).
@@ -946,7 +931,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card.face-down::after,
   .hand-right .card.face-down::after { font-size: 10px; }
-  .hand-right .card.face-down::after { transform: rotate(180deg); }
   #action-bar { padding: 4px 6px; gap: 4px; bottom: calc(63px + env(safe-area-inset-bottom, 0px)); left: 50%; right: auto; transform: translateX(-50%); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
   #action-bar-buttons { flex-wrap: wrap; justify-content: stretch; gap: 4px; width: 100%; }
   #action-bar button { padding: 6px 10px; font-size: 11px; min-height: 32px; min-width: 44px; flex: 1 1 auto; }
@@ -970,18 +954,16 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .card.face-down::after { font-size: 14px; }
   .hand-bottom { gap: 1px; max-width: 100%; padding: 18px 4px 1px; overflow: visible; }
   .card.selected { translate: 0 -10px; border-color: #ffd700; box-shadow: 0 4px 12px rgba(255,215,0,0.5); z-index: 10; }
-  .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; margin-left: -3px; }
+  .hand-top .card { width: 16px; height: 22px; flex-shrink: 0; margin-left: -3px; min-width: 0; }
   .hand-top .card:first-child { margin-left: 0; }
-  .hand-top .card.face-down::after { font-size: 10px; transform: rotate(180deg); }
+  .hand-top .card.face-down::after { font-size: 10px }
   .hand-left, .hand-right { justify-content: center; gap: 0; }
   /* rotated-stack: -4px -> overlap 2px, matching .hand-top (16x22, -3px, 1px gap) */
   .hand-left .card, .hand-right .card { width: 16px; height: 22px; margin: -4px 0; flex-shrink: 0; min-width: 0; }
   .hand-left .card:first-child, .hand-right .card:first-child { margin-top: 0; }
   .hand-left .card.face-down::after, .hand-right .card.face-down::after { font-size: 10px; }
-  .hand-right .card.face-down::after { transform: rotate(180deg); }
   .player-label { font-size: 9px; gap: 2px; }
   .player-label .turn-badge, .player-label .bot-badge, .player-label .finished-badge { font-size: 8px; padding: 1px 4px; }
-  #center-cards { gap: 2px; min-width: 80px; min-height: 44px; }
   #center-info { font-size: 10px; }
   .pass-tag { font-size: 9px; padding: 1px 6px; }
   #action-bar { padding: 4px 6px; gap: 4px; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(46px + env(safe-area-inset-bottom, 0px)); z-index: 20; width: calc(100% - 8px); max-width: calc(100vw - 8px); }
@@ -1140,7 +1122,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <div id="turn-hint">
         <span id="combo-preview"></span>
         <span id="error-msg"></span>
-        <span id="gesture-hint">Tap or swipe ↑ to select · drag a card here to play · drag onto a card to sort</span>
       </div>
     </div>
 
