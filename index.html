@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Poker Banting</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#16213e">
+<meta name="description" content="Poker Banting card game — play against bots or friends.">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Poker Banting">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; height: 100dvh; overflow: visible; }
@@ -1243,6 +1252,18 @@ window.addEventListener('error', (e) => {
 window.addEventListener('unhandledrejection', (e) => {
   console.error('[UNHANDLED REJECTION]', e.reason);
 });
+</script>
+
+<script>
+// PWA: register the service worker (static shell + offline fallback only;
+// the live /api game traffic is never cached — see sw.js).
+if ('serviceWorker' in navigator && (isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((err) => {
+      console.warn('[PWA] SW register failed:', err.message);
+    });
+  });
+}
 </script>
 </body>
 </html>

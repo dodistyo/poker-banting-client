@@ -15,6 +15,7 @@ const MIME = {
   ".css": "text/css",
   ".js": "application/javascript",
   ".json": "application/json",
+  ".webmanifest": "application/manifest+json",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".svg": "image/svg+xml",
@@ -24,10 +25,18 @@ const MIME = {
 function serveFile(res, filePath) {
   const ext = path.extname(filePath);
   const stats = fs.statSync(filePath);
+  // PWA: the service worker (sw.js) can only store cacheable responses, so
+  // the shell needs storable headers (no-store would silently skip the
+  // precache and break offline). Freshness is still guaranteed: the SW
+  // serves navigations network-first and SWR-refreshes static assets, and
+  // the shell is versioned by CACHE_VERSION in sw.js (bump on release).
+  // HTML stays no-cache (revalidate) so the lobby always re-checks the
+  // server before trusting a cached page.
+  const isHtml = ext === ".html";
   res.writeHead(200, {
     "Content-Type": MIME[ext] || "application/octet-stream",
     "Content-Length": stats.size,
-    "Cache-Control": "no-store, no-cache, must-revalidate",
+    "Cache-Control": isHtml ? "no-cache" : "public, max-age=3600",
   });
   fs.createReadStream(filePath).pipe(res);
 }
