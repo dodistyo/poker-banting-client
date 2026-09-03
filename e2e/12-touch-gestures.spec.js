@@ -261,3 +261,66 @@ test('drag is layout-stable across a mid-drag state frame (no flicker)', async (
   expect(reflowed.ready).toBe(true);
   expect(reflowed.cardLeft).not.toBe('');
 });
+
+// Regression (stale closure state): the card DOM nodes are born on the first
+// render, so their drag handlers close over THAT frame's state object. A
+// later server frame replaces `state` with a fresh object — a drag release
+// that read the closure `state` spliced the stale deal-order hand and called
+// render(staleState). If the deal-time frame was a bot's turn, that stale
+// render hid the action bar AND snapped the fan back to deal order —
+// "click Sort, drag a card, everything resets and the bar vanishes."
+test('manual sort drag after frames keeps hand order and action bar (stale state)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 }); // phone portrait
+  // Deal-time frame is a BOT's turn (Bot 2 leads trick 1): the human's card
+  // nodes are created while holding this state in their gesture closures.
+  await startTurn(page, makeServerState({ currentPlayer: 1, hands }));
+
+  // My turn arrives: a fresh state object; the bar must show.
+  await page.evaluate((s) => window.__app_injectMessage({ type: 'state', state: s }),
+    makeServerState({ currentPlayer: 0, hands }));
+  await expect(page.locator('#action-bar')).toHaveClass(/visible/);
+  const dealOrder = await page.evaluate(() =>
+    window.__app_getState().hands[0].map(c => c.rank + c.suit));
+
+  // Click Sort, then let another frame land (the sticky order must survive).
+  await page.locator('#btn-sort').click();
+  await page.evaluate((s) => window.__app_injectMessage({ type: 'state', state: s }),
+    makeServerState({ currentPlayer: 0, hands }));
+  await page.waitForTimeout(120);
+  const sorted = await page.evaluate(() =>
+    window.__app_getState().hands[0].map(c => c.rank + c.suit));
+  expect(sorted.join()).not.toBe(dealOrder.join());
+
+  // Manual drag: card at index 0 -> slot 3.
+  const from = await cardCenter(page, 0);
+  const to = await cardCenter(page, 3);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) {
+    await page.mouse.move(from.x + (to.x - from.x) * i / 6, from.y + (to.y - from.y) * i / 6, { steps: 2 });
+    await page.waitForTimeout(15);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+
+  // The bar must still be mine: the release re-renders the LIVE state (my
+  // turn), not the stale deal-time frame (bot's turn).
+  await expect(page.locator('#action-bar')).toHaveClass(/visible/);
+  const barOpacity = await page.evaluate(() =>
+    getComputedStyle(document.getElementById('action-bar')).opacity);
+  expect(barOpacity).toBe('1');
+
+  // And the hand is the sorted order with card 0 moved to slot 3 — NOT the
+  // deal order (which would mean the stale state was re-rendered).
+  const after = await page.evaluate(() =>
+    window.__app_getState().hands[0].map(c => c.rank + c.suit));
+  // No cards lost (it's a permutation of the same 13).
+  expect(after.slice().sort().join()).toBe(sorted.slice().sort().join());
+  // The release re-rendered the LIVE state, not the stale deal-time frame:
+  // the hand is NOT back in deal order…
+  expect(after.join()).not.toBe(dealOrder.join());
+  // …and the manual drag actually took effect (hand != the pre-drag sorted
+  // order — the move wasn't silently discarded by a stale-state render).
+  expect(after.join()).not.toBe(sorted.join());
+  await watch(page);
+});

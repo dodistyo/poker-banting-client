@@ -1,5 +1,12 @@
 import { comboName } from './game.js';
 
+// Live view of the app state (index.html wires it to the app's state var).
+// Drag handlers must read state THROUGH this at release time, not through
+// their closure: a server frame can replace `state` mid-drag, and the
+// closure copy would then be stale.
+const liveState = () => (typeof window !== 'undefined' && window.__app_state)
+  ? window.__app_state() : null;
+
 function cardKey(c) {
   const rankMap = {'3':0,'4':1,'5':2,'6':3,'7':4,'8':5,'9':6,'10':7,'J':8,'Q':9,'K':10,'A':11,'2':12};
   const suitMap = {diamonds:0,clubs:1,hearts:2,spades:3};
@@ -123,6 +130,26 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
 
             if (!cardEl._dragged) return; // plain tap -> onclick handles select
 
+            // The gesture may outlive a server frame: a frame replaces the app
+            // state with a FRESH object while this handler still closes over the
+            // old one. Reading `state` here would splice a stale hands array and
+            // render() the stale object over the fresh one — the hand visibly
+            // resets and the manual move is lost. Always resolve the CURRENT
+            // state (and the card's CURRENT index — a frame may have re-indexed
+            // the hand) at release time.
+            const live = liveState() || state;
+            const connIdx = parseInt(cardEl.dataset.idx);
+            const hand = (live.hands && live.hands[playerIdx]) || [];
+            const movedCard = hand[connIdx];
+            if (!movedCard || cardKey(movedCard) !== cardEl.dataset.key) {
+              // Card no longer exists in the live hand (played away mid-drag,
+              // redeal, ...): the DOM self-corrects on the next real frame.
+              return;
+            }
+            const dragToPlay = live.dragToPlay;
+            const selectCard = live.selectCard;
+            const onManualReorder = live.onManualReorder;
+
             const dx = ev.clientX - start.x;
             const dy = ev.clientY - start.y;
             const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
@@ -130,28 +157,27 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
 
             // 1) Dropped on the center play zone -> drag & drop to play.
             if (overDrop) {
-              if (state.dragToPlay) state.dragToPlay(playerIdx, fromIdx);
+              if (dragToPlay) dragToPlay(playerIdx, connIdx);
               return;
             }
 
             // 2) Mostly-vertical upward swipe -> activate (select) the card.
             if (dy < -swipeMin && Math.abs(dx) < Math.abs(dy) * 0.6) {
               if (navigator.vibrate) navigator.vibrate(10);
-              state.selectCard(playerIdx, fromIdx);
+              if (selectCard) selectCard(playerIdx, connIdx);
               return;
             }
 
             // 3) Dropped anywhere along the hand -> manual sort: the card
             //    takes the nearest slot (index = slot number).
             const slot = nearestSlot(ev.clientX);
-            if (slot >= 0 && slot !== fromIdx) {
-              const hands = state.hands;
-              const [moved] = hands[playerIdx].splice(fromIdx, 1);
-              hands[playerIdx].splice(slot, 0, moved);
-              if (state.onManualReorder) {
-                state.onManualReorder(hands[playerIdx].map(c => c.rank + ':' + c.suit));
+            if (slot >= 0 && slot !== connIdx) {
+              const [moved] = hand.splice(connIdx, 1);
+              hand.splice(slot, 0, moved);
+              if (onManualReorder) {
+                onManualReorder(hand.map(c => c.rank + ':' + c.suit));
               }
-              render(state);
+              render(live);
             }
           };
 
