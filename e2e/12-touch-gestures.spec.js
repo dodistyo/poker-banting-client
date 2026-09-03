@@ -1,11 +1,15 @@
 // Mobile touch-gesture interactions for the human hand (bottom seat):
-//  - tap selects / deselects a card (existing, regression under the new handler)
-//  - swipe UP on a card = activate (select) it
-//  - drag a card onto the center trick area = play it (drag & drop to play)
+//  - tap selects / deselects a card (regression under the new handler)
+//  - swipe a card OUT OF THE ACTIVE YELLOW BOX (its top edge crosses the
+//    seat's top border) = PLAY it immediately — the primary play gesture
+//    (fires mid-gesture, no release needed)
+//  - a swipe that STAYS inside the box plays nothing (and doesn't select)
+//  - down / sideways flicks never play (no false positives)
+//  - drag a card onto the center trick area = still plays it
 //  - drag a card onto another hand card = manual sort (regression, 07 too)
 //
 // All states are injected (helpers.js) so bot timing never interferes. For
-// drag-to-play we spy on WebSocket.prototype.send to assert the exact play
+// play gestures we spy on WebSocket.prototype.send to assert the exact play
 // message the gesture produced (the injected room doesn't exist on the real
 // server, so we verify the outgoing message, not a server echo).
 import { test, expect } from '@playwright/test';
@@ -48,6 +52,19 @@ async function cardCenter(page, idx) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
+// The "active yellow box" the swipe must LEAVE: the bottom seat area
+// (#player-0) — it carries the gold .active-player styling on your turn.
+// Returns the y just above its top border at the card's x — i.e. the
+// pointer position where the (pointer-centered) dragged card has fully
+// exited the box.
+async function aboveBoxTop(page, idx) {
+  const seat = await page.locator('#player-0').boundingBox();
+  const card = await page.locator('#hand-0 .card').nth(idx).boundingBox();
+  // Card top = pointer y - cardH/2 (drag-follower is translate(-50%,-50%)).
+  // The handler fires when cardTop <= seatTop - 8, so aim a bit further.
+  return { y: seat.y - card.height / 2 - 12 };
+}
+
 test('tap on own card still selects it (regression under the gesture handler)', async ({ page }) => {
   await startTurn(page);
   await page.locator('#hand-0 .card').first().click();
@@ -59,23 +76,54 @@ test('tap on own card still selects it (regression under the gesture handler)', 
   await expect(page.locator('#hand-0 .card').first()).not.toHaveClass(/selected/);
 });
 
-test('swipe up on a card activates (selects) it', async ({ page }) => {
+test('swiping a card out of the active box plays it (no release needed)', async ({ page }) => {
   await startTurn(page);
+  await trackSends(page);
+
   const c = await cardCenter(page, 2);
+  const exit = await aboveBoxTop(page, 2);
   await page.mouse.move(c.x, c.y);
   await page.mouse.down();
-  // Upward swipe: a few intermediate moves, ending well above the start.
-  await page.mouse.move(c.x, c.y - 20, { steps: 2 });
-  await page.mouse.move(c.x, c.y - 50, { steps: 3 });
+  // Intermediate step still INSIDE the box: nothing may fire yet.
+  await page.mouse.move(c.x, (c.y + exit.y) / 2, { steps: 3 });
+  expect(await sentPlays(page)).toHaveLength(0);
+  // Cross the box border -> the play fires on the crossing itself.
+  await page.mouse.move(c.x, exit.y, { steps: 3 });
+  expect(await sentPlays(page)).toHaveLength(1);
+
+  // Release anywhere (even back over the hand): the gesture is already
+  // committed, no second play, no manual-sort side effect.
+  await page.mouse.move(c.x, c.y, { steps: 3 });
   await page.mouse.up();
   await watch(page);
-  await expect(page.locator('#hand-0 .card').nth(2)).toHaveClass(/selected/);
-  await expect(page.locator('#btn-play')).toBeEnabled();
-  await expect(page.locator('#combo-preview')).not.toHaveText('');
+
+  const plays = await sentPlays(page);
+  expect(plays).toHaveLength(1);
+  expect(plays[0].cards).toEqual(['5:spades']); // 3rd card of makeHand(13,0)
 });
 
-test('swipe down and sideways flicks do NOT select (no false positives)', async ({ page }) => {
+test('a swipe that stays inside the box plays nothing (and selects nothing)', async ({ page }) => {
   await startTurn(page);
+  await trackSends(page);
+
+  const c = await cardCenter(page, 1);
+  const exit = await aboveBoxTop(page, 1);
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  // ~60% of the way to the border — short of leaving the box.
+  await page.mouse.move(c.x, c.y - (c.y - exit.y) * 0.6, { steps: 4 });
+  await page.mouse.up();
+  await watch(page);
+
+  expect(await sentPlays(page)).toHaveLength(0);
+  await expect(page.locator('#hand-0 .card').nth(1)).not.toHaveClass(/selected/);
+  await expect(page.locator('#btn-play')).toBeDisabled();
+});
+
+test('swipe down and sideways flicks never play (no false positives)', async ({ page }) => {
+  await startTurn(page);
+  await trackSends(page);
+
   // Swipe DOWN from card 3.
   const down = await cardCenter(page, 3);
   await page.mouse.move(down.x, down.y);
@@ -94,7 +142,8 @@ test('swipe down and sideways flicks do NOT select (no false positives)', async 
   await page.mouse.move(last.x + 90, last.y + 4, { steps: 3 });
   await page.mouse.up();
   await expect(page.locator('#hand-0 .card').nth(12)).not.toHaveClass(/selected/);
-  // Nothing selected at all -> Play stays disabled.
+
+  expect(await sentPlays(page)).toHaveLength(0);
   await expect(page.locator('#btn-play')).toBeDisabled();
 });
 
@@ -114,7 +163,8 @@ test('drag a card onto the center trick area plays it (drag & drop to play)', as
   await page.mouse.up();
   await watch(page);
 
-  // The gesture sent exactly the dragged card (3♠ = first card of makeHand).
+  // The gesture produced exactly one play of the dragged card (3♠). It may
+  // have fired on the box-border crossing or on the drop — same outcome.
   const plays = await sentPlays(page);
   expect(plays).toHaveLength(1);
   expect(plays[0].cards).toEqual(['3:spades']);
@@ -170,21 +220,26 @@ test('dropping an invalid card on the center shows the reason and plays nothing'
   expect(await sentPlays(page)).toHaveLength(0);
 });
 
-test('mobile viewport: gestures armed on your turn', async ({ page }) => {
+test('mobile viewport: swipe-out-of-box plays, partial swipe and bot turn do not', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); // phone portrait
   await startTurn(page);
+  await trackSends(page);
 
   // Drop zone armed on mobile while it's the human's turn.
   await expect(page.locator('#center-cards')).toHaveClass(/play-dropzone/);
 
-  // Swipe-up works on mobile sizes too (cards are JS-scaled, ~20px tall).
+  // Swipe card 1 out of the box on mobile (cards are JS-scaled, ~20px tall).
   const c = await cardCenter(page, 1);
+  const exit = await aboveBoxTop(page, 1);
   await page.mouse.move(c.x, c.y);
   await page.mouse.down();
-  await page.mouse.move(c.x, c.y - 18, { steps: 2 });
-  await page.mouse.move(c.x, c.y - 40, { steps: 3 });
+  await page.mouse.move(c.x, (c.y + exit.y) / 2, { steps: 2 });
+  expect(await sentPlays(page)).toHaveLength(0);
+  await page.mouse.move(c.x, exit.y, { steps: 3 });
+  expect(await sentPlays(page)).toHaveLength(1);
   await page.mouse.up();
-  await expect(page.locator('#hand-0 .card').nth(1)).toHaveClass(/selected/);
+  await watch(page);
+  expect((await sentPlays(page))[0].cards).toEqual(['4:spades']);
 
   // Drop zone disarms on the bot's turn.
   await page.evaluate((s) => window.__app_injectMessage({
@@ -211,7 +266,9 @@ test('drag is layout-stable across a mid-drag state frame (no flicker)', async (
   const from = await cardCenter(page, 0);
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  await page.mouse.move(from.x + 8, from.y + 8, { steps: 2 }); // arm the drag
+  // Tiny move that stays INSIDE the active box (no swipe-to-play fire):
+  // horizontal, so it also can't cross the vertical exit gate.
+  await page.mouse.move(from.x + 10, from.y + 6, { steps: 2 }); // arm the drag
   await page.waitForTimeout(50);
 
   // Capture the exact layout while the drag is live.
@@ -288,7 +345,8 @@ test('manual sort drag after frames keeps hand order and action bar (stale state
     window.__app_getState().hands[0].map(c => c.rank + c.suit));
   expect(sorted.join()).not.toBe(dealOrder.join());
 
-  // Manual drag: card at index 0 -> slot 3.
+  // Manual drag: card at index 0 -> slot 3 (horizontal: never crosses the
+  // vertical swipe-to-play gate, stays inside the box).
   const from = await cardCenter(page, 0);
   const to = await cardCenter(page, 3);
   await page.mouse.move(from.x, from.y);

@@ -46,11 +46,12 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
         cardEl.onpointerdown = (e) => {
           if (e.button !== 0) return;
           e.preventDefault();
-          // Own cards handle every gesture in JS (tap, swipe-up select, drag
-          // to center = play, drag on a card = manual sort). 'pan-x' would let
-          // the browser steal vertical swipes into page scrolling, so claim
-          // all pointer deltas — pointercancel still fires if the OS takes the
-          // touch away and cleans the drag up.
+          // Own cards handle every gesture in JS (tap, swipe OUT OF THE
+          // ACTIVE BOX = play, drag between cards = manual sort, drag to
+          // center = play). 'pan-x' would let the browser steal vertical
+          // swipes into page scrolling, so claim all pointer deltas —
+          // pointercancel still fires if the OS takes the touch away and
+          // cleans the drag up.
           cardEl.style.touchAction = 'none';
           cardEl._dragged = false;
           const start = { x: e.clientX, y: e.clientY };
@@ -71,8 +72,18 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
           cardEl.classList.add('drag-placeholder');
 
           let targetIdx = -1;
+          let playArmed = false; // set once the card leaves the active box
           const dropZone = document.getElementById('center-cards');
-          const swipeMin = Math.max(16, Math.round(rect.height * 0.45));
+          // Swipe-to-play boundary: the gold "active box" is this seat's
+          // #player-bottom area. The play fires when the DRAGGED CARD has
+          // left the box — i.e. its top edge crosses the box's top border
+          // (the follower is pointer-centered, so card top = pointer y -
+          // cardH/2). A small 8px margin avoids firing on a pixel of jitter.
+          // Self-relative geometry, so it holds at any resolution.
+          const boxEl = cardEl.closest('#player-0') || cardEl.parentElement;
+          const boxRect = boxEl ? boxEl.getBoundingClientRect() : null;
+          const playExitY = boxRect ? (boxRect.top - rect.height / 2 - 8) : (rect.top - rect.height);
+
           // Fan slots: the x-position of every card's visual center. Dropping
           // "on a card" is decided by nearest slot (geometric), not by
           // elementFromPoint — with a fanned, overlapping hand the topmost
@@ -102,6 +113,22 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
             follower.style.left = ev.clientX + 'px';
             follower.style.top = ev.clientY + 'px';
 
+            // SWIPE-TO-PLAY (the primary play gesture): the card has left the
+            // active yellow box — its top edge crossed the box's top border.
+            // Fires immediately on the crossing, no release needed (real card
+            // flick). Requires a near-vertical move so horizontal manual-sort
+            // drags and side flicks can never arm it. Once armed the gesture
+            // is committed: any later release location is ignored (onUp).
+            if (!playArmed && dy < 0 && Math.abs(dx) < Math.abs(dy) * 0.75
+                && ev.clientY <= playExitY) {
+              playArmed = true;
+              clearHighlights();
+              if (dropZone) dropZone.classList.add('play-drop-active');
+              const live = liveState() || state;
+              if (live.dragToPlay) live.dragToPlay(playerIdx, parseInt(cardEl.dataset.idx));
+              return;
+            }
+
             clearHighlights();
             const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
             if (elUnder) {
@@ -128,6 +155,9 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
             cardEl.classList.remove('drag-placeholder');
             clearHighlights();
 
+            // The play already fired while the card was leaving the box.
+            if (playArmed) return;
+
             if (!cardEl._dragged) return; // plain tap -> onclick handles select
 
             // The gesture may outlive a server frame: a frame replaces the app
@@ -147,11 +177,9 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
               return;
             }
             const dragToPlay = live.dragToPlay;
-            const selectCard = live.selectCard;
             const onManualReorder = live.onManualReorder;
 
             const dx = ev.clientX - start.x;
-            const dy = ev.clientY - start.y;
             const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
             const overDrop = elUnder && elUnder.closest ? elUnder.closest('#center-cards') : null;
 
@@ -161,14 +189,7 @@ function ensureCardEl(card, hideCards, isSelf, playerIdx, cardIdx, state, handEl
               return;
             }
 
-            // 2) Mostly-vertical upward swipe -> activate (select) the card.
-            if (dy < -swipeMin && Math.abs(dx) < Math.abs(dy) * 0.6) {
-              if (navigator.vibrate) navigator.vibrate(10);
-              if (selectCard) selectCard(playerIdx, connIdx);
-              return;
-            }
-
-            // 3) Dropped anywhere along the hand -> manual sort: the card
+            // 2) Dropped anywhere along the hand -> manual sort: the card
             //    takes the nearest slot (index = slot number).
             const slot = nearestSlot(ev.clientX);
             if (slot >= 0 && slot !== connIdx) {

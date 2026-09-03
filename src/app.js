@@ -55,6 +55,7 @@ export function initClient(url) {
   if (joinNameInput) joinNameInput.value = defaultName;
 
   connect(serverUrl, handleMessage, onConnect, onDisconnect);
+  updateRejoinMenuItem();
 
   // Resize observer for dynamic hand sizing
   let resizeTimer = null;
@@ -71,12 +72,39 @@ export function initClient(url) {
 
 function onConnect() {
   updateConnectionStatus(true);
+  // Rejoin is MANUAL (user request 2026-09): a saved session shows a
+  // "Rejoin" item in the main menu; nothing auto-fires on connect. The
+  // retry machinery below (REJOIN_MAX_ATTEMPTS) still applies, because the
+  // first manual rejoin after a reload can race the server's registration
+  // of the old socket's disconnect -> "Rejoin failed".
+}
+
+// Show/hide the "Rejoin" main-menu item. Visible iff a complete session
+// (code + name + token) exists AND we're not currently in a room — i.e.
+// exactly the "I refreshed, I'm in the lobby, do I get my seat back?" state.
+export function updateRejoinMenuItem() {
+  const li = document.getElementById('lobby-rejoin-item');
+  if (!li) return;
   const session = loadSession();
-  if (session.code && session.name && session.token) {
-    rejoinAttempts = 1;
-    rejoinPending = true;
-    sendRejoin(session.code, session.name, session.token);
+  const canRejoin = !!(session && session.code && session.name && session.token) && !roomCode;
+  li.style.display = canRejoin ? '' : 'none';
+  if (canRejoin) {
+    const codeEl = li.querySelector('.rejoin-code');
+    if (codeEl) codeEl.textContent = session.code;
   }
+}
+
+// Manual rejoin entry point (main-menu "Rejoin" item).
+export function handleRejoinRoom() {
+  const session = loadSession();
+  if (!session || !session.code || !session.name || !session.token) {
+    showError('No saved session to rejoin.');
+    return;
+  }
+  disarmLobbyWatchdog();
+  rejoinAttempts = 1;
+  rejoinPending = true;
+  sendRejoin(session.code, session.name, session.token);
 }
 
 // A reload tears the old socket down and opens a new one almost instantly, so
@@ -161,6 +189,7 @@ function handleMessage(msg) {
       isPublic = msg.isPublic !== false;
       state = adaptState(msg.state);
       saveSession(roomCode, playerId, resolvePlayerName(playerId, 'You'), msg.token, isPublic);
+      updateRejoinMenuItem();
       handlePhase();
       clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
@@ -175,6 +204,7 @@ function handleMessage(msg) {
       isPublic = loadSession().isPublic === true; // a joiner is never the creator
       state = adaptState(msg.state);
       saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token, isPublic);
+      updateRejoinMenuItem();
       handlePhase();
       clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
@@ -188,6 +218,7 @@ function handleMessage(msg) {
       isPublic = loadSession().isPublic === true;
       state = adaptState(msg.state);
       saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), msg.token);
+      updateRejoinMenuItem();
       handlePhase();
       clearLog(); // wipe previous game's entries BEFORE rendering the new log
       render(state);
@@ -249,9 +280,13 @@ function handleMessage(msg) {
       if (rejoinPending) {
         // Reload race: the old socket's disconnect hadn't landed when we sent
         // the first rejoin. Retry silently until the seat is registered. Once
-        // the attempts run out, surface the error (seat expired / room gone).
+        // the attempts run out, the seat is genuinely gone (expired / room
+        // closed) — surface the error AND drop the stale session so the
+        // dead "Rejoin" menu item doesn't linger.
         if (rejoinAttempts >= REJOIN_MAX_ATTEMPTS) {
           resetRejoin();
+          clearSession();
+          updateRejoinMenuItem();
           showError(msg.message);
         } else {
           retryRejoin();
@@ -547,6 +582,7 @@ window.__app_leaveRoom = () => {
   isPublic = false;
   state = null;
   clearSession();
+  updateRejoinMenuItem();
   // The escape hatch is gone with the room — hide the hamburger too.
   const menuBtn = document.getElementById('menu-toggle-btn');
   if (menuBtn) menuBtn.classList.remove('visible');
@@ -804,6 +840,7 @@ export function sortHand() {
 export function nextRound() {
   document.getElementById('gameover-overlay').classList.remove('show');
   clearSession();
+  updateRejoinMenuItem();
   disconnect();
   handOrder = null;
   state = null;
