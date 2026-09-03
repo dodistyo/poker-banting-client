@@ -59,8 +59,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #lobby-overlay label.checkbox-label input[type="checkbox"]:checked + .toggle-track { background: #e94560; border-color: #e94560; }
 #lobby-overlay label.checkbox-label input[type="checkbox"]:checked + .toggle-track::after { transform: translateX(18px); background: #fff; }
 #lobby-overlay label.checkbox-label input[type="checkbox"]:focus-visible + .toggle-track { outline: 2px solid #e94560; outline-offset: 2px; }
-#lobby-player-list { text-align: left; margin: 12px 0; display: none; }
-#lobby-player-list .lobby-player { padding: 4px 0; font-size: 14px; color: #ccc; }
 #lobby-error { color: #ff5252; font-size: 12px; margin-top: 8px; display: none; }
 
 #lobby-room-list { text-align: left; margin: 12px 0; }
@@ -278,7 +276,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #btn-pass { background: #ff9800; color: #fff; }
 #btn-pass:disabled { background: #555; color: #888; cursor: not-allowed; }
 #error-msg { color: #ff5252; font-size: 12px; text-align: center; white-space: nowrap; }
-#turn-indicator { color: #ffd700; font-size: 13px; font-weight: 600; margin-right: 12px; white-space: nowrap; }
 #combo-preview { color: #aaa; font-size: 12px; white-space: nowrap; }
 #combo-preview:empty, #error-msg:empty { display: none; }
 
@@ -298,7 +295,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #log .log-entry strong { color: #e94560; }
 #log .log-entry .bot { color: #64b5f6; }
 
-/* Mobile game log: bottom sheet. #log-fab opens it; the sheet re-renders
+/* Mobile game log: bottom sheet. #log-fab-btn opens it; the sheet re-renders
    the same log entries from state (see renderLog) into #sheet-log. */
 #sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 94; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
 #log-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 95; background: #16213e; border-top: 1px solid #0f3460; border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform 0.25s ease; max-height: 55vh; display: flex; flex-direction: column; box-shadow: 0 -8px 32px rgba(0,0,0,0.5); }
@@ -677,7 +674,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     min-height: 36px;
     flex: 1 1 auto;
   }
-  #turn-indicator { font-size: 11px; margin-right: 4px; flex-shrink: 0; }
   #combo-preview { font-size: 10px; }
   #error-msg { font-size: 10px; }
 
@@ -869,7 +865,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     min-height: 40px; min-width: 52px;
     flex: 1 1 auto;
   }
-  #turn-indicator { font-size: 11px; margin-right: 6px; }
   #combo-preview { font-size: 10px; }
   #error-msg { font-size: 10px; }
 
@@ -951,7 +946,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
   .pass-tag { font-size: 8px; padding: 1px 4px; }
   #combo-preview { font-size: 9px; }
   #error-msg { font-size: 9px; }
-  #turn-indicator { font-size: 10px; }
   #table-area {
     grid-template-columns: 28px 1fr 28px;
     overflow: visible;
