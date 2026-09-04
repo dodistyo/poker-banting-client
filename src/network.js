@@ -213,6 +213,12 @@ export function sendRejoin(code, name, token) {
   ensureConnected(() => send({ type: 'rejoin', code, name, token }));
 }
 
+export function sendCheckRoom(code, token) {
+  // Read-only probe (server: rooms.check_room) — no seat is touched, the
+  // answer only tells the client whether its saved session is still live.
+  ensureConnected(() => send({ type: 'checkRoom', code, token }));
+}
+
 export function isConnected() {
   return ws !== null && ws.readyState === WebSocket.OPEN;
 }

@@ -1,6 +1,6 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
-import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendLeaveRoom, sendRejoin, isConnected, resetConnection } from './network.js';
+import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendLeaveRoom, sendRejoin, sendCheckRoom, isConnected, resetConnection } from './network.js';
 import { saveSession, loadSession, clearSession } from './session.js';
 
 let state = null;
@@ -77,6 +77,43 @@ function onConnect() {
   // retry machinery below (REJOIN_MAX_ATTEMPTS) still applies, because the
   // first manual rejoin after a reload can race the server's registration
   // of the old socket's disconnect -> "Rejoin failed".
+  //
+  // Proactive staleness check: probe the server about the saved session.
+  // If the room is genuinely gone (found === false — closed, orphan
+  // timeout, or server restart wiped the in-memory state), the "Rejoin"
+  // item is a lie, so drop the session and hide it BEFORE the user even
+  // clicks. found === true but rejoinable === false is the reload race
+  // (old socket's disconnect not registered yet) — that's the existing
+  // bounded retry's job, so we leave it alone.
+  probeRejoinSession();
+}
+
+let rejoinProbeInFlight = false;
+
+// Outstanding roomStatus probes (max ~1 in practice). The response is
+// validated against the CURRENT session so a slow answer about a replaced
+// session (user joined a new room while the probe was in flight) is ignored.
+let pendingProbes = [];
+
+function probeRejoinSession() {
+  if (roomCode) return; // we're already in a room — nothing to check
+  const session = loadSession();
+  if (!session || !session.code || !session.name || !session.token) return;
+  if (rejoinProbeInFlight) return;
+  rejoinProbeInFlight = true;
+  const probedCode = session.code;
+  const timer = setTimeout(() => {
+    // Probe unanswered (zombie socket / network hole): stay silent, the
+    // manual rejoin's own error path + watchdog still covers it.
+    rejoinProbeInFlight = false;
+  }, 8000);
+  sendCheckRoom(session.code, session.token);
+  pendingProbes.push({
+    code: probedCode,
+    clear() {
+      clearTimeout(timer);
+    },
+  });
 }
 
 // Show/hide the "Rejoin" main-menu item. Visible iff a complete session
@@ -298,6 +335,31 @@ function handleMessage(msg) {
 
     case 'pong':
       break;
+
+    case 'roomStatus': {
+      // Answer to a CheckRoom probe. Only act if the CURRENT saved session
+      // is still the one we probed (user may have joined a new room in the
+      // meantime — a stale answer about the old room must not clobber it).
+      const probe = pendingProbes.find(p => p.code === msg.code);
+      if (probe) {
+        pendingProbes = pendingProbes.filter(p => p !== probe);
+        probe.clear();
+        rejoinProbeInFlight = false;
+        const session = loadSession();
+        if (session && session.code === msg.code) {
+          if (msg.found === false) {
+            // Room genuinely gone: the "Rejoin" item is a lie. Drop the
+            // session and hide the button before the user ever clicks it.
+            clearSession();
+            updateRejoinMenuItem();
+          }
+          // found === true (regardless of rejoinable): session is live.
+          // rejoinable === false is the reload race — the manual rejoin's
+          // bounded retry (REJOIN_MAX_ATTEMPTS) owns that path.
+        }
+      }
+      break;
+    }
   }
 }
 

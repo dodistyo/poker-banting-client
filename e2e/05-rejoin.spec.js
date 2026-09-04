@@ -21,6 +21,56 @@ async function ownHandDealt(page) {
 
 const rejoinItem = (page) => page.locator('#lobby-rejoin-item');
 
+const SESSION_KEY = 'poker-banting_session';
+
+test('stale session (room gone) -> Rejoin item proactively hidden + session cleared', async ({ page }) => {
+  await page.goto('/');
+  await waitForConnected(page);
+
+  // Simulate the real-world trigger: a saved session that points at a room
+  // the server no longer knows (server restart wiped state, orphan timeout
+  // cleaned the room, ...). localStorage still holds it from before.
+  await page.evaluate((k) => {
+    localStorage.setItem(k, JSON.stringify({
+      code: 'NOPE99', pid: '0', name: 'Dodi', token: 'fake-token', isPublic: false,
+    }));
+  }, SESSION_KEY);
+
+  await page.reload();
+  await waitForConnected(page);
+
+  // On init the item would be VISIBLE (localStorage has the stale session).
+  // Nothing else in the client clears a session or hides this item on
+  // connect — only the CheckRoom probe's `roomStatus` handler does that when
+  // the server answers found=false. So asserting the end state proves the
+  // probe ran AND the server said the room is gone.
+  await expect(rejoinItem(page)).toBeHidden();
+  await expect
+    .poll(() => page.evaluate((k) => localStorage.getItem(k), SESSION_KEY))
+    .toBeNull();
+});
+
+test('live saved session (game running, room survives reload) -> Rejoin item stays', async ({ page }) => {
+  // Create AND start a real room. Starting matters: a mid-game reload keeps
+  // the seat in disconnected_players (the room is NOT removed), whereas a
+  // lobby reload as a public creator would delete the room entirely.
+  await createRoomViaUI(page, 'Dodi');
+  const code = (await page.locator('#party-code').textContent()).trim();
+  await startGameViaUI(page);
+  await waitForPhase(page, 'playing');
+
+  // Reload mid-game: the room still exists, the seat is preserved. The probe
+  // must answer found=true and must NOT over-clear the live session / hide
+  // the item (over-aggressive clearing would be the regression this guards).
+  await page.reload();
+  await waitForConnected(page);
+  await expect(rejoinItem(page)).toBeVisible();
+  await expect(rejoinItem(page)).toContainText(code);
+  await expect
+    .poll(() => page.evaluate((k) => localStorage.getItem(k), SESSION_KEY))
+    .not.toBeNull();
+});
+
 test('no saved session -> Rejoin item hidden (fresh start)', async ({ page }) => {
   await page.goto('/');
   await waitForConnected(page);
