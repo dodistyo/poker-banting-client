@@ -37,12 +37,21 @@ function serveFile(res, filePath) {
   // old shell (old layout, old icons) keeps serving forever.
   // HTML stays no-cache (revalidate) so the lobby always re-checks the
   // server before trusting a cached page.
+  // BUT the SW *script itself* is served no-store: the spec requires it
+  // never be cached, and a stale-cached sw.js (we hit this behind the
+  // Cloudflare tunnel) means a new CACHE_VERSION never loads, so the old
+  // shell keeps serving forever. NOTE: a bare "no-cache" is NOT enough —
+  // the CF edge normalizes it to a 4h cacheable entry (max-age=14400).
+  // "no-store" is what CF honors. The precache inside sw.js is a separate
+  // Cache-API operation, so no-store on the script doesn't break offline.
   const isHtml = ext === ".html";
   const isSw = filePath.endsWith("sw.js");
   res.writeHead(200, {
     "Content-Type": MIME[ext] || "application/octet-stream",
     "Content-Length": stats.size,
-    "Cache-Control": isSw || isHtml ? "no-cache" : "public, max-age=3600",
+    "Cache-Control": isSw ? "no-store, no-cache, must-revalidate"
+                         : isHtml ? "no-cache"
+                         : "public, max-age=3600",
   });
   fs.createReadStream(filePath).pipe(res);
 }
