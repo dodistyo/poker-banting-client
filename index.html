@@ -54,10 +54,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .lobby-menu a { display: block; padding: 12px 16px; color: #fff; text-decoration: none; font-size: 15px; font-weight: 500; transition: color 0.2s ease; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; background: rgba(255,255,255,0.04); }
 .lobby-menu li:hover a { color: #e94560; border-color: rgba(233,69,96,0.55); background: rgba(233,69,96,0.10); box-shadow: 0 3px 14px rgba(233,69,96,0.18); }
 .lobby-menu a:focus-visible { outline: 2px solid #e94560; outline-offset: 2px; }
-/* Rejoin item: amber (not the danger-pink hover) — it's "your seat is still
-   waiting" info, not a destructive action. */
-.lobby-menu li.rejoin a { border-color: rgba(255,193,7,0.45); background: rgba(255,193,7,0.08); color: #ffd54f; }
-.lobby-menu li.rejoin:hover a { color: #ffd54f; border-color: rgba(255,193,7,0.8); background: rgba(255,193,7,0.14); box-shadow: 0 3px 14px rgba(255,193,7,0.15); }
+/* Rejoin item: same look as the other menu items (user decision 2026-09 —
+   it should look like a normal menu button, e.g. New Game). Only the room
+   code span keeps a subtle monospace style. */
 .lobby-menu li.rejoin .rejoin-code { font-family: monospace; letter-spacing: 2px; font-size: 13px; opacity: 0.85; }
 
 /* Submit button */
