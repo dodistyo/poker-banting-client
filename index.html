@@ -15,7 +15,16 @@
 <meta name="apple-mobile-web-app-title" content="Poker Banting">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; height: 100dvh; overflow: visible; }
+html { height: 100%; }
+/* height:100% (NOT 100vh/100dvh): in a standalone PWA the dvh/vh units can
+   resolve to the PHYSICAL screen height while the layout viewport is smaller
+   (status bar + home indicator subtracted). 100dvh then makes the document
+   taller than the scrollable area (measured: 93px = 59+34 on an iPhone-sized
+   device) and the user has to scroll to see the bottom strip. Percentages
+   resolve against the ACTUAL layout viewport, so the document can never be
+   taller than the screen. In the browser 100% == dynamic viewport too, so
+   mobile-browser behaviour is unchanged. */
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100%; overflow: visible; }
 
 /* Lobby overlay */
 #lobby-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
@@ -104,7 +113,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
    home-indicator area). Insetting the grid by the safe-area values keeps the
    header clear of the notch and the bottom strip clear of the home bar. In
    the browser the env() values are 0 — layout is unchanged. */
-#app { display: grid; grid-template-columns: 1fr 260px; grid-template-rows: 50px minmax(0, 1fr); height: 100vh; height: 100dvh; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+#app { display: grid; grid-template-columns: 1fr 260px; grid-template-rows: 50px minmax(0, 1fr); height: 100%; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 #header { grid-column: 1 / -1; background: #16213e; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 2px solid #0f3460; position: relative; }
 #header h1 { color: #e94560; font-size: 20px; }
 #header .controls { display: flex; gap: 8px; align-items: center; }

@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v3"; // bump on every release (v3: manual rejoin + swipe-to-play shell)
+const CACHE_VERSION = "pb-v4"; // bump on every release (v4: PWA standalone no-scroll fix — 100% instead of 100dvh)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 
