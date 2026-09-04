@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v5"; // bump on every release (v5: rejoin menu item matches New Game style)
+const CACHE_VERSION = "pb-v6"; // bump on every release (v6: multi-window rejoin — seat-in-use hint + cross-tab session sync)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 

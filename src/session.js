@@ -1,4 +1,4 @@
-const SESSION_KEY = 'poker-banting_session';
+export const SESSION_KEY = 'poker-banting_session';
 
 function saveSession(code, pid, name, token, isPublic = false) {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ code, pid: String(pid), name, token, isPublic }));

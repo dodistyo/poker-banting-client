@@ -1,7 +1,7 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
 import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendLeaveRoom, sendRejoin, sendCheckRoom, isConnected, resetConnection } from './network.js';
-import { saveSession, loadSession, clearSession } from './session.js';
+import { SESSION_KEY as SESSION_STORAGE_KEY, saveSession, loadSession, clearSession } from './session.js';
 
 let state = null;
 let playerId = null;
@@ -87,6 +87,17 @@ function onConnect() {
   // bounded retry's job, so we leave it alone.
   probeRejoinSession();
 }
+
+// Another tab (PWA + mobile browser share one localStorage) can clear or
+// replace the session while this window is idle in the lobby. The `storage`
+// event only fires in the OTHER windows (not the one that made the change),
+// so it's a clean cross-tab signal: refresh the Rejoin item so both windows
+// agree about what's rejoinable. A rejoin that failed with "seat in use"
+// needs no special flag — that path resets its own state, so a click right
+// after the other window lets go just works.
+window.addEventListener('storage', (e) => {
+  if (e.key === SESSION_STORAGE_KEY) updateRejoinMenuItem();
+});
 
 let rejoinProbeInFlight = false;
 
@@ -315,6 +326,18 @@ function handleMessage(msg) {
     case 'error':
       disarmLobbyWatchdog();
       if (rejoinPending) {
+        // "Seat already in use by another window": the saved session's seat
+        // is STILL CONNECTED in a second tab / PWA + mobile browser. The
+        // room is alive and the seat is ours — don't burn the retry budget
+        // and don't clear the session (that would destroy the good state).
+        // Surface the hint once; the user closes the other window and clicks
+        // Rejoin again, which succeeds immediately.
+        if (typeof msg.message === 'string' && msg.message.includes('in use')) {
+          rejoinPending = false;
+          resetRejoin();
+          showError('Seat is in use by another window. Close the other tab and rejoin again.');
+          break;
+        }
         // Reload race: the old socket's disconnect hadn't landed when we sent
         // the first rejoin. Retry silently until the seat is registered. Once
         // the attempts run out, the seat is genuinely gone (expired / room
