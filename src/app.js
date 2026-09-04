@@ -875,11 +875,16 @@ export function playCards() {
   sendPlay(identifiers);
 }
 
-// Drag & drop to play: dropping a hand card on the center trick area plays
-// exactly that card — the classic one-gesture play. It mirrors playCards()
-// validation: a single card (or a pair: the dropped card + one already
-// selected) that beats or leads the table. Anything else shows the reason
-// instead of playing, so a failed drag never silently does nothing.
+// Drag & drop / swipe to play. If the user has an active selection (the
+// yellow "active" group), the gesture plays that WHOLE group — the slide is
+// the one-gesture trigger and the group is what goes out. With no selection
+// the gesture plays the single card that was dragged/swiped. Either way it
+// mirrors playCards() validation: a combo that beats or leads the table is
+// sent; anything else shows the reason instead of silently doing nothing.
+// (Old behaviour was `card.selected ? others : [card, ...others]` — sliding a
+// selected card played the OTHER selected cards and skipped the swiped one,
+// so a yellow group could never be played by swiping: "slide only works for a
+// single card".)
 export function dragPlay(playerIdx, cardIdx) {
   if (navigator.vibrate) navigator.vibrate(15);
   if (!state || state.gameOver || state.threePhase) return;
@@ -890,8 +895,10 @@ export function dragPlay(playerIdx, cardIdx) {
   const card = hand[cardIdx];
   if (!card) return;
 
-  const others = hand.filter((c, i) => i !== cardIdx && c.selected);
-  const selection = card.selected ? others : [card, ...others];
+  // Yellow group active -> play the whole group (the slide is the trigger).
+  // No selection -> play the single card that was dragged/swiped.
+  const selectedCards = hand.filter(c => c.selected);
+  const selection = selectedCards.length > 0 ? selectedCards : [card];
   const validation = validatePlay(selection, state.trick.combo);
 
   if (!validation.valid) {
@@ -916,9 +923,13 @@ export function sortHand() {
   if (!state || state.gameOver || state.threePhase) return;
   if (playerId === null) return;
 
-  clearSelections();
+  // Reorder in place — do NOT clearSelections(). sortCards() returns a new
+  // array of the SAME card objects, so each card's `selected` flag (the yellow
+  // "active" group) survives the sort. Clearing here was what made the group
+  // vanish the moment the user tapped Sort — right before they'd swipe it out.
   state.hands[playerId] = sortCards(state.hands[playerId]);
   handOrder = state.hands[playerId].map(c => c.rank + ':' + c.suit);
+  updatePlayButton();
   render(state);
 }
 

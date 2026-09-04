@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v6"; // bump on every release (v6: multi-window rejoin — seat-in-use hint + cross-tab session sync)
+const CACHE_VERSION = "pb-v7"; // bump on every release (v7: slide-to-play plays the whole yellow group; Sort no longer wipes the selection)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 
