@@ -311,6 +311,23 @@ function handleMessage(msg) {
       }
       break;
 
+    case 'seatChanged':
+      // Lobby compaction renumbered seats (a player left, survivors shifted
+      // down). Follow our stored playerId to its new value, or every future
+      // Ready/Play from this tab would land on whoever sits in our OLD
+      // slot — and the server would personalise the wrong hand to us.
+      {
+        const mapping = Array.isArray(msg.renumbered) ? msg.renumbered : [];
+        const my = mapping.find(([old]) => old === playerId);
+        if (my) {
+          playerId = my[1];
+          if (roomCode) {
+            saveSession(roomCode, playerId, resolvePlayerName(playerId, 'Player'), loadSession().token, isPublic);
+          }
+        }
+      }
+      break;
+
     case 'playerReady':
       if (state) {
         const players = Array.isArray(state.players) ? state.players : Object.values(state.players);
