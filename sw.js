@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v8"; // bump on every release (v8: seat renumbering after a lobby departure — seatChanged keeps each tab on its own seat)
+const CACHE_VERSION = "pb-v9"; // bump on every release (v9: new straight rules — numbers 3-10, letters J-Q-K only)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 

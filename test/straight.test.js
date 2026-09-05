@@ -34,29 +34,34 @@ test('5-6-7-8-9 all numbers is valid', () => {
   assert.strictEqual(r.type, 'straight');
 });
 
+test('8-9-10 all numbers is valid', () => {
+  const r = detectCombo([mkCard('8', 'h'), mkCard('9', 'h'), mkCard('10', 'h')]);
+  assert.strictEqual(r.type, 'straight');
+});
+
+test('6-7-8-9-10 all numbers is valid', () => {
+  const r = detectCombo([mkCard('6', 'h'), mkCard('7', 'h'), mkCard('8', 'h'), mkCard('9', 'h'), mkCard('10', 'h')]);
+  assert.strictEqual(r.type, 'straight');
+});
+
 test('J-Q-K all letters is valid', () => {
   const r = detectCombo([mkCard('J', 'h'), mkCard('Q', 'h'), mkCard('K', 'h')]);
   assert.strictEqual(r.type, 'straight');
 });
 
-test('Q-K-A all letters is valid', () => {
+test('Q-K-A is invalid (no aces in straights)', () => {
   const r = detectCombo([mkCard('Q', 'h'), mkCard('K', 'h'), mkCard('A', 'h')]);
-  assert.strictEqual(r.type, 'straight');
+  assert.strictEqual(r, null);
 });
 
-test('J-Q-K-A all letters is valid', () => {
-  const r = detectCombo([mkCard('J', 'h'), mkCard('Q', 'h'), mkCard('K', 'h'), mkCard('A', 'h')]);
-  assert.strictEqual(r.type, 'straight');
+test('10-J-Q is invalid (10 is a number, not a letter)', () => {
+  const r = detectCombo([mkCard('10', 'h'), mkCard('J', 'h'), mkCard('Q', 'h')]);
+  assert.strictEqual(r, null);
 });
 
-test('10-J-Q-K all letters is valid', () => {
+test('10-J-Q-K is invalid (mixed numbers/letters)', () => {
   const r = detectCombo([mkCard('10', 'h'), mkCard('J', 'h'), mkCard('Q', 'h'), mkCard('K', 'h')]);
-  assert.strictEqual(r.type, 'straight');
-});
-
-test('10-J-Q-K-A all letters is valid', () => {
-  const r = detectCombo([mkCard('10', 'h'), mkCard('J', 'h'), mkCard('Q', 'h'), mkCard('K', 'h'), mkCard('A', 'h')]);
-  assert.strictEqual(r.type, 'straight');
+  assert.strictEqual(r, null);
 });
 
 test('9-10-J mixed numbers/letters is invalid', () => {

@@ -69,9 +69,12 @@ export function detectCombo(cards) {
 export function isStraight(ranks) {
   const unique = [...new Set(ranks)].sort((a, b) => a - b);
   if (unique.length < 3) return false;
-  if (unique.some(r => r >= 12)) return false;
-  const allNumbers = unique.every(r => r <= 6);
-  const allLetters = unique.every(r => r >= 7);
+  // A (12) and 2 (13) never appear in straights
+  if (unique.some(r => r >= 11)) return false;
+  // Number straight: 3-10 (indices 0-7), 3-5 consecutive cards
+  const allNumbers = unique.every(r => r <= 7);
+  // Letter straight: exactly J-Q-K (indices 8-10)
+  const allLetters = unique.length === 3 && unique.every(r => r >= 8 && r <= 10);
   if (!allNumbers && !allLetters) return false;
   for (let i = 1; i < unique.length; i++) {
     if (unique[i] !== unique[i - 1] + 1) return false;

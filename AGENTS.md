@@ -31,7 +31,7 @@ Tests use Node's built-in `assert` module. No test framework installed.
 - Rank order: 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 2
 - Suit order: diamonds < clubs < hearts < spades (only used for 3-discard phase tiebreak, not trick play)
 - Valid combos: single, pair, triple, straight (3-5 cards, same suit), full house, four of a kind
-- Straights must be all-numbers (3–9) or all-letters (10–A), never mixed. 2s cannot appear in straights.
+- Straights must be all-numbers (3–10, min 3 cards) or exactly J-Q-K. 2s and aces cannot appear in straights.
 - First round: 3-discard phase — players discard all their 3s, ordered by most 3s first (highest suit tiebreak)
 - First trick led by the player who discarded 3s first
 - Scoring per round: 1st = +10, 2nd = +5, 3rd = +0, last = -15
@@ -48,6 +48,6 @@ All game state is module-scope `let`/`const` in `index.html` (around line 727):
 
 ## Gotchas
 
-- Test files have their own copy of `detectCombo`, `isStraight`, etc. Changes to combo logic in `index.html` must be manually synced to test files.
+- `src/game.js` is the single source of truth for combo logic (card model, `detectCombo`, `isStraight`, `validatePlay`); test files import from it. Keep it in sync with the server's `game/combo.rs`.
 - The `trick` object is an IIFE closure (line 733). Don't access `combo`/`passed` directly — use `trick.getCombo()`, `trick.getPassed()`, etc.
 - AI delay is 600–1000ms via `setTimeout`. The `aiTimeout` global is used to cancel pending AI turns on game reset.
