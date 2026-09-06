@@ -54,6 +54,7 @@ export function detectCombo(cards) {
   }
 
   if (n === 4) {
+    if (counts[0] === 4) return { type: 'bomb', cards: sorted };
     if (isSameSuit && isStraight(ranks)) return { type: 'straight', cards: sorted };
   }
 
@@ -119,6 +120,11 @@ export function compareCombos(comboA, comboB) {
       return aKicker - bKicker;
     }
 
+    case 'bomb': {
+      // All four cards share one rank (sorted ascending → cards[0]).
+      return comboA.cards[0].rankIndex - comboB.cards[0].rankIndex;
+    }
+
     default: return 0;
   }
 }
@@ -136,10 +142,31 @@ export function validatePlay(cards, tableCombo) {
   if (!combo) return { valid: false, error: 'Invalid combo', comboName: '' };
 
   if (tableCombo) {
-    if (combo.cards.length !== tableCombo.cards.length || combo.type !== tableCombo.type)
-      return { valid: false, error: 'Must match: ' + comboName(tableCombo) + ' (' + tableCombo.cards.length + ' cards).', comboName: comboName(combo) };
-    if (compareCombos(combo, tableCombo) <= 0)
-      return { valid: false, error: 'Cannot beat: ' + tableCombo.cards.map(cardLabel).join(' '), comboName: comboName(combo) };
+    const comboIsBomb = combo.type === 'bomb';
+    const tableIsBomb = tableCombo.type === 'bomb';
+
+    if (comboIsBomb) {
+      if (tableIsBomb) {
+        // Bomb vs bomb: only a strictly higher rank may counter.
+        if (compareCombos(combo, tableCombo) <= 0)
+          return { valid: false, error: 'Cannot beat: ' + tableCombo.cards.map(cardLabel).join(' '), comboName: comboName(combo) };
+      } else if (!(tableCombo.type === 'single' && tableCombo.cards[0].rankIndex === 12)) {
+        // A bomb is a pure reaction: it is only legal against a single 2.
+        return { valid: false, error: 'Bomb can only counter a single 2.', comboName: comboName(combo) };
+      }
+    } else {
+      if (tableIsBomb) {
+        // Once a bomb is on the table, only a higher bomb or pass.
+        return { valid: false, error: 'Only a higher bomb or pass is legal after a bomb.', comboName: comboName(combo) };
+      }
+      if (combo.cards.length !== tableCombo.cards.length || combo.type !== tableCombo.type)
+        return { valid: false, error: 'Must match: ' + comboName(tableCombo) + ' (' + tableCombo.cards.length + ' cards).', comboName: comboName(combo) };
+      if (compareCombos(combo, tableCombo) <= 0)
+        return { valid: false, error: 'Cannot beat: ' + tableCombo.cards.map(cardLabel).join(' '), comboName: comboName(combo) };
+    }
+  } else if (combo.type === 'bomb') {
+    // A bomb can never open a trick.
+    return { valid: false, error: 'Bomb cannot lead a trick.', comboName: comboName(combo) };
   }
 
   return { valid: true, error: '', comboName: comboName(combo), combo };
@@ -149,7 +176,7 @@ export function comboName(combo) {
   const names = {
     single: 'Single', pair: 'Pair', triple: 'Triple',
     straight: 'Straight', fullhouse: 'Full House',
-    fourkind: 'Four of a Kind'
+    fourkind: 'Four of a Kind', bomb: 'Bomb'
   };
   return names[combo.type] || combo.type;
 }

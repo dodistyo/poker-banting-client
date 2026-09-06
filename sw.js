@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v9"; // bump on every release (v9: new straight rules — numbers 3-10, letters J-Q-K only)
+const CACHE_VERSION = "pb-v10"; // bump on every release (v10: bomb trick — 4 same rank, reaction-only, bomb endgame)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 

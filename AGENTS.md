@@ -30,7 +30,7 @@ Tests use Node's built-in `assert` module. No test framework installed.
 - 4 players (1 human + 3 AI bots), standard 52-card deck, 13 cards each
 - Rank order: 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 2
 - Suit order: diamonds < clubs < hearts < spades (only used for 3-discard phase tiebreak, not trick play)
-- Valid combos: single, pair, triple, straight (3-5 cards, same suit), full house, four of a kind
+- Valid combos: single, pair, triple, straight (3-5 cards, same suit), full house, four of a kind, bomb (4 same rank, any suit — reaction only: counters a single 2 or a higher bomb; a completed bomb trick ends the round: bomber 1st +10, bombed player 4th -15, others 0)
 - Straights must be all-numbers (3–10, min 3 cards) or exactly J-Q-K. 2s and aces cannot appear in straights.
 - First round: 3-discard phase — players discard all their 3s, ordered by most 3s first (highest suit tiebreak)
 - First trick led by the player who discarded 3s first
