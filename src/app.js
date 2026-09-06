@@ -689,18 +689,29 @@ function renderPartyScreen() {
   }
 }
 
-window.__app_saveRoomSettings = () => {
-  if (!state) return;
-  const plEl = document.getElementById('party-setting-play-limit');
-  const wpEl = document.getElementById('party-setting-winning-point');
-  const pl = plEl && plEl.value !== '' ? parseInt(plEl.value, 10) : null;
-  const wp = wpEl && wpEl.value !== '' ? parseInt(wpEl.value, 10) : null;
-  if (pl != null && (pl < 1 || pl > 120)) { showSettingsHint('Play limit: 1–120 detik'); return; }
-  if (wp != null && (wp < 1 || wp > 9999)) { showSettingsHint('Winning point: 1–9999'); return; }
-  if (pl == null && wp == null) return;
-  sendRoomSettings(pl, wp);
-  showSettingsHint('Tersimpan…');
-};
+// Room settings auto-apply (no Save button): each host edit is sent to the
+// server immediately (debounced ~350ms) and the server stores it on the
+// room, applying it at the next start_game. Out-of-range values are
+// flagged locally and NOT sent (the server would reject them anyway).
+function bindSettingAutoApply(inputId, min, max, label, sendValue) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  let t = null;
+  el.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const v = el.value === '' ? null : parseInt(el.value, 10);
+      if (v == null || Number.isNaN(v)) return; // empty/typing — wait
+      if (v < min || v > max) {
+        showSettingsHint(`${label}: ${min}–${max}`);
+        return;
+      }
+      sendValue(v);
+    }, 350);
+  });
+}
+bindSettingAutoApply('party-setting-play-limit', 1, 120, 'Play limit', (v) => sendRoomSettings(v, null));
+bindSettingAutoApply('party-setting-winning-point', 1, 9999, 'Winning point', (v) => sendRoomSettings(null, v));
 
 function showSettingsHint(text) {
   const hint = document.getElementById('party-settings-hint');

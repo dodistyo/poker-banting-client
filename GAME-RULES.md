@@ -190,7 +190,9 @@ Host-only, changeable in the **lobby** and in the **game-over** state:
 | Winning point | 50 | 1–9999 | First player whose session total reaches this wins the match |
 
 Out-of-range values are **rejected** by the server (not clamped). Non-host
-players see the values read-only.
+players see the values read-only. Changes are **applied automatically** per
+room — the host edits a value and it is sent to the server on change (no
+Save button); it takes effect from the next `start_game`.
 
 ## Match Play (Winning Point & Sesi Unlimited)
 
