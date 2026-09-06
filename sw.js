@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v12"; // bump on every release (v12: room settings auto-apply, Save button removed)
+const CACHE_VERSION = "pb-v13"; // bump on every release (v13: room settings inputs left-aligned)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 
