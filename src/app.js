@@ -1,6 +1,6 @@
 import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game.js';
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
-import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendLeaveRoom, sendRejoin, sendCheckRoom, isConnected, resetConnection } from './network.js';
+import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendRoomSettings, sendLeaveRoom, sendRejoin, sendCheckRoom, isConnected, resetConnection } from './network.js';
 import { SESSION_KEY as SESSION_STORAGE_KEY, saveSession, loadSession, clearSession } from './session.js';
 
 let state = null;
@@ -340,6 +340,21 @@ function handleMessage(msg) {
       }
       break;
 
+    case 'roomSettings':
+      // Host updated play limit / winning point: the server echoes the new
+      // values to the whole room. Merge + re-render (the waiting-room
+      // settings section reads straight from state).
+      if (state) {
+        if (msg.playLimitSecs != null) state.playLimitSecs = msg.playLimitSecs;
+        if (msg.winningPoint != null) state.winningPoint = msg.winningPoint;
+        // Server accepted the change — the pending "Tersimpan…" hint is done.
+        const hint = document.getElementById('party-settings-hint');
+        if (hint) { hint.textContent = ''; hint.style.display = 'none'; }
+        handlePhase();
+        render(state);
+      }
+      break;
+
     case 'error':
       disarmLobbyWatchdog();
       if (rejoinPending) {
@@ -445,6 +460,11 @@ function adaptState(serverState) {
   adapted.logEntries = serverState.log || [];
   adapted.gameOver = serverState.phase === 'gameOver';
   adapted.threePhase = serverState.phase === 'threeDiscard';
+  // Room settings + match-end state (play limit / winning point are host-set).
+  adapted.playLimitSecs = serverState.playLimitSecs ?? 10;
+  adapted.winningPoint = serverState.winningPoint ?? 50;
+  adapted.gameWinner = serverState.gameWinner ?? null;
+  adapted.turnSeq = serverState.turnSeq ?? 0;
 
   if (serverState.threeDiscard) {
     adapted.threePhaseOrder = serverState.threeDiscard.order;
@@ -537,6 +557,7 @@ function handlePhase() {
 
   document.getElementById('three-phase-overlay').classList.remove('show');
   updatePlayButton();
+  updateTurnCountdown();
 }
 
 function showLobby() {
@@ -624,6 +645,19 @@ function renderPartyScreen() {
   const isCreator = myIdx !== -1 && players[myIdx].isCreator;
   const myReady = state.ready && state.ready[myIdx];
 
+  // Host-only settings (play limit + winning point). The server only accepts
+  // these in lobby / game-over, which is exactly when this screen shows.
+  const settingsSection = document.getElementById('party-settings-section');
+  if (settingsSection) {
+    settingsSection.style.display = isCreator ? 'block' : 'none';
+    const plInput = document.getElementById('party-setting-play-limit');
+    const wpInput = document.getElementById('party-setting-winning-point');
+    // Don't clobber a field the user is typing in; the roomSettings echo
+    // lands on the next render pass and settles it.
+    if (plInput && document.activeElement !== plInput) plInput.value = state.playLimitSecs;
+    if (wpInput && document.activeElement !== wpInput) wpInput.value = state.winningPoint;
+  }
+
   // Always a neutral grey "Leave". For the creator of a public room the
   // server additionally dissolves the room (rooms.rs:leave_room) — that is
   // behaviour, not label: the button reads the same for everyone.
@@ -649,8 +683,32 @@ function renderPartyScreen() {
 
   const startBtn = document.getElementById('party-start-btn');
   if (startBtn) {
-    startBtn.style.display = isCreator ? 'block' : 'none';
+    // After a match winner the server permanently blocks a new start — the
+    // button would just bounce an error, so hide it.
+    startBtn.style.display = isCreator && state.gameWinner == null ? 'block' : 'none';
   }
+}
+
+window.__app_saveRoomSettings = () => {
+  if (!state) return;
+  const plEl = document.getElementById('party-setting-play-limit');
+  const wpEl = document.getElementById('party-setting-winning-point');
+  const pl = plEl && plEl.value !== '' ? parseInt(plEl.value, 10) : null;
+  const wp = wpEl && wpEl.value !== '' ? parseInt(wpEl.value, 10) : null;
+  if (pl != null && (pl < 1 || pl > 120)) { showSettingsHint('Play limit: 1–120 detik'); return; }
+  if (wp != null && (wp < 1 || wp > 9999)) { showSettingsHint('Winning point: 1–9999'); return; }
+  if (pl == null && wp == null) return;
+  sendRoomSettings(pl, wp);
+  showSettingsHint('Tersimpan…');
+};
+
+function showSettingsHint(text) {
+  const hint = document.getElementById('party-settings-hint');
+  if (!hint) return;
+  hint.textContent = text;
+  hint.style.display = 'block';
+  clearTimeout(hint.__t);
+  hint.__t = setTimeout(() => { hint.textContent = ''; hint.style.display = 'none'; }, 2500);
 }
 
 window.__app_copyCode = () => {
@@ -703,6 +761,9 @@ function showGameOver() {
   const overlay = document.getElementById('gameover-overlay');
   if (!state) return;
 
+  const matchOver = state.gameWinner != null;
+  overlay.classList.toggle('match-over', matchOver);
+
   const ranking = state.finishedOrder.slice(0, 4);
   const loser = ranking.length >= 4 ? ranking[3] : null;
   // Guard against a missing name/score so the heading never reads "undefined"
@@ -710,13 +771,25 @@ function showGameOver() {
     pid != null && state.playerNames[pid] ? state.playerNames[pid] : (pid != null ? 'Player ' + (pid + 1) : 'Unknown');
   const isHumanLoser = loser !== null && state.isHuman[loser];
 
-  document.getElementById('winner-text').textContent =
-    loser === null ? 'Game Over' : (isHumanLoser ? 'You Lost!' : nameOf(loser) + ' Lost!');
+  if (matchOver) {
+    const champion = state.gameWinner;
+    const isMe = champion === playerId;
+    document.getElementById('winner-text').textContent = isMe
+      ? '🏆 You Win the Match!'
+      : '🏆 ' + nameOf(champion) + ' Wins the Match!';
+  } else {
+    document.getElementById('winner-text').textContent =
+      loser === null ? 'Game Over' : (isHumanLoser ? 'You Lost!' : nameOf(loser) + ' Lost!');
+  }
 
   // Session context: which round just ended and the running total.
   const round = state.round || 1;
   const sub = document.getElementById('gameover-round');
-  if (sub) sub.textContent = 'Round ' + round + ' complete';
+  if (sub) {
+    sub.textContent = matchOver
+      ? 'Match selesai — ' + state.winningPoint + ' poin tercapai'
+      : 'Round ' + round + ' complete · target ' + state.winningPoint + ' poin';
+  }
 
   const totals = state.totalScores || [0, 0, 0, 0];
   const fs = document.getElementById('final-scores');
@@ -724,11 +797,16 @@ function showGameOver() {
   const medals = ['1st', '2nd', '3rd', 'Last'];
   ranking.forEach((p, idx) => {
     const div = document.createElement('div');
-    div.className = 'final-row rank-' + (idx + 1);
+    div.className = 'final-row rank-' + (idx + 1) + (matchOver && p === state.gameWinner ? ' match-winner' : '');
     // Per-round points first, running total in parentheses.
     div.textContent = medals[idx] + ' ' + nameOf(p) + ' (' + (state.scores[p] ?? 0) + ' pts)  ·  Total ' + (totals[p] ?? 0);
     fs.appendChild(div);
   });
+
+  // After a match win the server blocks a new start permanently — "Main Lagi"
+  // would just bounce an error, so hide it and keep only Keluar.
+  const playAgainBtn = document.getElementById('go-play-again-btn');
+  if (playAgainBtn) playAgainBtn.style.display = matchOver ? 'none' : 'block';
 
   const totalRow = document.getElementById('gameover-total');
   if (totalRow) {
@@ -1183,4 +1261,55 @@ function updatePlayButton() {
   }
 
   btnPlay.disabled = false;
+}
+
+// Play-limit countdown: the server's watchdog auto-moves a human after
+// state.playLimitSecs, so mirror that timer while it's our turn. The turn
+// identity is (turnSeq, currentPlayer): the server bumps turn_seq on every
+// turn advance, so a stale timer for the previous turn dies with it.
+let turnCountdownTimer = null;
+let turnCountdownKey = null;
+
+function updateTurnCountdown() {
+  const el = document.getElementById('turn-countdown');
+  if (!state || !el) return;
+
+  const isMyTurn = playerId !== null && state.currentPlayer === playerId &&
+    state.phase === 'playing' && !state.gameOver && !state.threePhase;
+  const limit = state.playLimitSecs || 10;
+
+  if (!isMyTurn) {
+    stopTurnCountdown();
+    return;
+  }
+
+  const key = state.turnSeq + ':' + state.currentPlayer;
+  if (key !== turnCountdownKey) {
+    // New turn — restart the full timer.
+    turnCountdownKey = key;
+    let remaining = limit;
+    if (turnCountdownTimer) clearInterval(turnCountdownTimer);
+    el.classList.add('visible');
+    const tick = () => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        // The server will auto-move now; show zero briefly until the
+        // next state message flips the turn (turnSeq bump) and hides it.
+        el.textContent = '⏱ 0s';
+        return;
+      }
+      el.textContent = '⏱ ' + remaining + 's';
+      el.classList.toggle('warning', remaining <= 3);
+    };
+    el.textContent = '⏱ ' + remaining + 's';
+    el.classList.remove('warning');
+    turnCountdownTimer = setInterval(tick, 1000);
+  }
+}
+
+function stopTurnCountdown() {
+  if (turnCountdownTimer) { clearInterval(turnCountdownTimer); turnCountdownTimer = null; }
+  turnCountdownKey = null;
+  const el = document.getElementById('turn-countdown');
+  if (el) { el.textContent = ''; el.classList.remove('visible', 'warning'); }
 }

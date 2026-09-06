@@ -101,7 +101,7 @@ test('game over -> Main Lagi -> waiting room (auto-ready, same room)', async ({ 
 
   await expect(page.locator('#gameover-overlay.show')).toBeVisible();
   await expect(page.locator('#winner-text')).toHaveText('You Lost!');
-  await expect(page.locator('#gameover-round')).toHaveText('Round 2 complete');
+  await expect(page.locator('#gameover-round')).toContainText('Round 2 complete');
 
   // Round points AND running total are shown per row.
   const rows = page.locator('#final-scores > div');
@@ -176,7 +176,7 @@ test('real server: full round -> game over -> start again -> round 2 without thr
   expect(round1.round).toBe(1);
   // total == scores after round 1 (the session started at zero).
   expect(round1.total).toEqual(round1.scores);
-  await expect(page.locator('#gameover-round')).toHaveText('Round 1 complete');
+  await expect(page.locator('#gameover-round')).toContainText('Round 1 complete');
 
   // ── Continue: Main Lagi -> waiting room -> Start Game ──
   await page.evaluate(() => window.playAgain());

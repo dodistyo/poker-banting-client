@@ -168,6 +168,16 @@ export function sendStartGame() {
   send({ type: 'startGame' });
 }
 
+// Host-only: update play limit (1..120s) and/or winning point (1..9999).
+// The server rejects out-of-range values with an error message.
+export function sendRoomSettings(playLimitSecs, winningPoint) {
+  const msg = { type: 'setRoomSettings' };
+  if (playLimitSecs != null && Number.isFinite(playLimitSecs)) msg.playLimitSecs = playLimitSecs;
+  if (winningPoint != null && Number.isFinite(winningPoint)) msg.winningPoint = winningPoint;
+  if (Object.keys(msg).length === 1) return; // nothing to send
+  send(msg);
+}
+
 export function sendLeaveRoom() {
   send({ type: 'leaveRoom' });
   connectUrl = null;

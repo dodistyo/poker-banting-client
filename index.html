@@ -28,7 +28,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 
 /* Lobby overlay */
 #lobby-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
-#lobby-overlay .panel { background: #16213e; border-radius: 16px; padding: 32px 24px; text-align: center; min-width: 384px; max-width: 440px; position: relative; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04); }
+#lobby-overlay .panel { background: #16213e; border-radius: 16px; padding: 32px 24px; text-align: center; min-width: 420px; max-width: 480px; width: 95vw; position: relative; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04); }
 #lobby-overlay h2 { margin-bottom: 24px; color: #e94560; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
 #lobby-overlay h3 { margin: 0; color: #e94560; font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
 .lobby-header { display: flex; align-items: center; justify-content: center; margin-bottom: 32px; position: relative; }
@@ -290,6 +290,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #error-msg { color: #ff5252; font-size: 12px; text-align: center; white-space: nowrap; }
 #combo-preview { color: #aaa; font-size: 12px; white-space: nowrap; }
 #combo-preview:empty, #error-msg:empty { display: none; }
+/* Play-limit countdown: only visible while the limit is ticking down */
+#turn-countdown { color: #ffd700; font-size: 12px; font-weight: 700; white-space: nowrap; display: none; }
+#turn-countdown.visible { display: inline; }
+#turn-countdown.warning { color: #ff5252; animation: cdPulse 0.5s ease-in-out infinite; }
+@keyframes cdPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 /* Sidebar */
 #app.no-sidebar { grid-template-columns: 1fr 0px; }
@@ -424,6 +429,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #gameover-overlay .go-total { margin: 10px 0 4px; font-size: 12px; color: #8a93a8; line-height: 1.6; word-break: break-word; }
 #gameover-overlay button.go-exit { background: #2a3a5c; box-shadow: none; margin-top: 6px; font-size: 14px; padding: 10px 36px; }
 #gameover-overlay button.go-exit:hover { background: #34456b; transform: none; box-shadow: none; }
+/* Match-winner (winning point reached): gold celebration styling */
+#gameover-overlay.match-over .panel { border-color: #ffd700; box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(255,215,0,0.15); }
+#gameover-overlay.match-over #winner-text { color: #ffd700; text-shadow: 0 0 18px rgba(255,215,0,0.35); }
+#gameover-overlay .final-scores .final-row.match-winner { background: rgba(255,215,0,0.18); color: #ffd700; font-weight: 700; }
+#gameover-overlay .final-scores .final-row.match-winner::before { content: '🏆'; }
 
 /* 3-discard phase overlay */
 #three-phase-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: none; align-items: center; justify-content: center; z-index: 80; }
@@ -1090,6 +1100,21 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
           <tbody></tbody>
         </table>
       </div>
+      <div class="lobby-section" id="party-settings-section">
+        <label>Room Settings</label>
+        <div id="party-settings-row" style="display:flex;gap:10px;align-items:flex-end;justify-content:center;flex-wrap:wrap;">
+          <div style="text-align:left;">
+            <div style="font-size:11px;color:#8899aa;margin-bottom:4px;">Play limit (s)</div>
+            <input id="party-setting-play-limit" type="number" min="1" max="120" style="width:90px;padding:8px 10px;font-size:14px;">
+          </div>
+          <div style="text-align:left;">
+            <div style="font-size:11px;color:#8899aa;margin-bottom:4px;">Winning point</div>
+            <input id="party-setting-winning-point" type="number" min="1" max="9999" style="width:90px;padding:8px 10px;font-size:14px;">
+          </div>
+          <button id="party-settings-save-btn" onclick="window.__app_saveRoomSettings()" style="padding:9px 18px;font-size:13px;margin:0;">Save</button>
+        </div>
+        <div id="party-settings-hint" style="display:none;font-size:12px;color:#8a97a8;margin-top:8px;"></div>
+      </div>
       <button id="party-ready-btn" class="lobby-submit-btn" onclick="window.__app_toggleReady()" style="display:none;box-shadow:none;">Ready</button>
       <button id="party-start-btn" class="lobby-submit-btn" onclick="window.__app_startGame()" style="display:none;">Start Game</button>
       <button id="party-leave-btn" class="lobby-submit-btn" onclick="window.__app_leaveRoom()" style="background:#555;margin-top:8px;box-shadow:none;">Leave</button>
@@ -1116,7 +1141,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
     <div id="gameover-round" class="go-subtitle"></div>
     <div class="final-scores" id="final-scores"></div>
     <div id="gameover-total" class="go-total"></div>
-    <button onclick="playAgain()">Main Lagi</button>
+    <button id="go-play-again-btn" onclick="playAgain()">Main Lagi</button>
     <button onclick="nextRound()" class="go-exit">Keluar</button>
   </div>
 </div>
@@ -1144,6 +1169,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <div id="turn-hint">
         <span id="combo-preview"></span>
         <span id="error-msg"></span>
+        <span id="turn-countdown"></span>
       </div>
     </div>
 
