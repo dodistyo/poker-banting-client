@@ -1,53 +1,62 @@
-# Pocer — Poker Banting Card Game
+# Pocer — Poker Banting Card Game (Client)
+
+Browser game (vanilla JS, ES modules) for the Pocer poker-banting server.
 
 ## Structure
 
-`index.html` — entry point, imports from `src/app.js` (ES modules). Game logic split across `src/` directory.
+- `index.html` — entry point, markup + all CSS
+- `src/app.js` — app state, screens, turn handling, play-limit countdown
+- `src/game.js` — **single source of truth for combo logic** (`detectCombo`,
+  `isStraight`, `validatePlay`, card model)
+- `src/render.js` — DOM rendering (hand, table, player frames, turn hint)
+- `src/network.js` — WebSocket client (connect, room actions, message send)
+- `sw.js` — service worker (network-first; bump `CACHE_VERSION` `pb-vN` on
+  every release; `/api` bypasses the cache)
+
+**Game rules: `GAME-RULES.md` in this repo is the single reference** (combos,
+straights, bomb, scoring, play limit, winning point, protocol). Update it
+whenever rules change.
 
 ## Dev Server
 
-`make serve` — starts `dev-server.js` on port 3000, proxies `/api` → `localhost:8080` (HTTP + WebSocket). Proxy strips `/api` prefix before forwarding.
+`make serve` — starts `dev-server.js` on port 3000, proxies `/api` →
+`localhost:8080` (HTTP + WebSocket); proxy strips the `/api` prefix.
 
-- `PROXY=false make serve` — disables proxy (static files only)
+- `PROXY=false make serve` — static files only
 - `PROXY_TARGET=host:port make serve` — custom backend target
-
-Backend URL in `src/app.js:8` resolves to `ws://location.host/api/ws`.
+- Backend URL in `src/app.js` resolves to `ws://location.host/api/ws`
 
 ## Testing
 
-Test files duplicate core game logic (card model, combo detection) since they can't import from the HTML file.
-
-```
-node test.js            # combo detection, trick cycle, full game simulation
-node trick-test.js      # trick reset scenario (human wins, bots pass)
-node trick-reset-test.js # sequential trick wins, no-undefined check
+```bash
+for f in test/*.test.js; do node "$f"; done   # unit (plain assert, no framework)
+xvfb-run -a npx playwright test               # e2e (no $DISPLAY here; server must be up)
 ```
 
-Tests use Node's built-in `assert` module. No test framework installed.
-
-## Game Rules (Poker Banting / 3D)
-
-- 4 players (1 human + 3 AI bots), standard 52-card deck, 13 cards each
-- Rank order: 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 2
-- Suit order: diamonds < clubs < hearts < spades (only used for 3-discard phase tiebreak, not trick play)
-- Valid combos: single, pair, triple, straight (3-5 cards, same suit), full house, four of a kind, bomb (4 same rank, any suit — reaction only: counters a single 2 or a higher bomb; a completed bomb trick ends the round: bomber 1st +10, bombed player 4th -15, others 0)
-- Straights must be all-numbers (3–10, min 3 cards) or exactly J-Q-K. 2s and aces cannot appear in straights.
-- First round: 3-discard phase — players discard all their 3s, ordered by most 3s first (highest suit tiebreak)
-- First trick led by the player who discarded 3s first
-- Scoring per round: 1st = +10, 2nd = +5, 3rd = +0, last = -15
-- Game ends when 3 players have emptied their hands; the last player loses the round
+- `test/*.test.js` import combo logic from `src/game.js` (they do NOT
+  duplicate it). E2E specs live in `e2e/*.spec.js`; shared helpers in
+  `e2e/helpers.js`.
+- E2E runs against the LIVE server, so start it first (`just dev` in the
+  server repo).
 
 ## Key State Variables
 
-All game state is module-scope `let`/`const` in `index.html` (around line 727):
-- `hands` — array of 4 card arrays
-- `currentPlayer` — whose turn it is
-- `trick` — IIFE module tracking current combo, combo player, and pass list
-- `finishedOrder` — players who've emptied their hands
-- `threePhase` — boolean flag for the 3-discard phase
+All in module scope in `src/app.js`:
+
+- `state` — last server state (adapted via `adaptState`), or `null`
+- `playerId` — our seat id (0–3)
+- `roomCode` — current room code
+- `turnCountdownTimer` / `turnCountdownKey` — play-limit countdown, keyed on
+  `turnSeq` so stale timers die when the turn advances
 
 ## Gotchas
 
-- `src/game.js` is the single source of truth for combo logic (card model, `detectCombo`, `isStraight`, `validatePlay`); test files import from it. Keep it in sync with the server's `game/combo.rs`.
-- The `trick` object is an IIFE closure (line 733). Don't access `combo`/`passed` directly — use `trick.getCombo()`, `trick.getPassed()`, etc.
-- AI delay is 600–1000ms via `setTimeout`. The `aiTimeout` global is used to cancel pending AI turns on game reset.
+- `src/game.js` MUST stay semantically identical to the server's
+  `src/game/combo.rs` (parity). The server's
+  `tests/integration_test.rs::test_combo_detection_matches_js` is the guard.
+  Change both sides + their tests together.
+- State is server-authoritative: the client only mirrors the last `state`
+  message. Never mutate game state locally.
+- After a match winner (`state.gameWinner != null`), Start Game is hidden —
+  the server blocks a new start for that room permanently.
+- Mobile-first (Android PWA via Cloudflare tunnel); desktop must work too.
