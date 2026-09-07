@@ -575,11 +575,16 @@ export function renderThreePhaseOverlay(state) {
 }
 
 export function updateScoreboard(state) {
-  const { playerNames, scores, isHuman, _playerId } = state;
+  const { playerNames, scores, totalScores, isHuman, _playerId } = state;
   const sb = document.getElementById('scoreboard');
   if (!sb) return;
 
-  const scoreKey = scores.join(',');
+  // The strip carries the CUMULATIVE session total (the number Dodi actually
+  // cares about). `totalScores` is server-authoritative and accumulates at
+  // every round end; states from before the totals existed (or injected
+  // test states without them) fall back to the per-round scores.
+  const totals = (Array.isArray(totalScores) && totalScores.length) ? totalScores : scores;
+  const scoreKey = totals.join(',') + '|' + scores.join(',');
   if (sb.dataset.scoreKey === scoreKey && sb.dataset.playerId === String(_playerId)) return;
   sb.dataset.scoreKey = scoreKey;
   sb.dataset.playerId = String(_playerId);
@@ -592,7 +597,7 @@ export function updateScoreboard(state) {
     // render them as a dim "Empty" row instead of "undefined pts".
     const has = playerNames[i] != null;
     const name = has ? playerNames[i] : 'Empty';
-    const pts = (scores[i] != null ? scores[i] : 0);
+    const pts = (totals[i] != null ? totals[i] : 0);
     const badge = (has && !isHuman[i]) ? ' <span style="color:#64b5f6;font-size:10px;">[BOT]</span>' : '';
     const row = document.createElement('div');
     row.className = 'score-row' + (has ? '' : ' empty-seat');

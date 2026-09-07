@@ -76,7 +76,7 @@ test('game over: bot loses, human ranked first', async ({ page }) => {
     hands: [[], [], [], [card('3', 'clubs')]],
     scores: [9, 7, 5, 1],
     finishedOrder: [0, 1, 2, 3],
-    round: 1,
+    round: 2,
     totalScores: [9, 7, 5, 1],
   }));
 
@@ -101,7 +101,7 @@ test('game over: human is the loser', async ({ page }) => {
     hands: [[card('3', 'clubs')], [], [], []],
     scores: [1, 9, 7, 5],
     finishedOrder: [1, 2, 3, 0],
-    round: 1,
+    round: 2,
     totalScores: [1, 9, 7, 5],
   }));
 

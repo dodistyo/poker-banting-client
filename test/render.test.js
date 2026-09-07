@@ -70,6 +70,8 @@ function makeState(hand0, hand1, hand2, hand3, opts = {}) {
     },
     finishedOrder: opts.finishedOrder || [],
     scores: opts.scores || [0, 0, 0, 0],
+    totalScores: opts.totalScores,
+    round: opts.round || 1,
     log: opts.log || [],
     // Adapted properties (normally set by adaptState in app.js)
     _playerId: 0,
@@ -240,11 +242,31 @@ test('renderThreePhaseOverlay shows opponent 3-count when cards masked', () => {
 
 test('updateScoreboard shows scores', () => {
   setupDOM();
+  // Pre-session-total era: no totalScores on the state -> fall back to the
+  // per-round scores (kept for injected states that predate the totals).
   const state = makeState([], [], [], [], { scores: [10, 5, 0, -15] });
+  delete state.totalScores;
   updateScoreboard(state);
   const sb = document.getElementById('scoreboard');
   assert.ok(sb.innerHTML.includes('10'), 'Should show score 10');
   assert.ok(sb.innerHTML.includes('-15'), 'Should show score -15');
+});
+
+test('updateScoreboard shows the CUMULATIVE session totals, not per-round points', () => {
+  setupDOM();
+  // Round 2 in play: this round's points are [5,2,0,0] but the bottom strip
+  // must carry the RUNNING SESSION TOTAL.
+  const state = makeState([], [], [], [], {
+    scores: [5, 2, 0, 0],
+    totalScores: [12, 17, 3, -15],
+  });
+  updateScoreboard(state);
+  const sb = document.getElementById('scoreboard');
+  const pts = [...sb.querySelectorAll('.score-row .pts')].map(el => el.textContent);
+  assert.deepStrictEqual(pts, ['12 pts', '17 pts', '3 pts', '-15 pts'],
+    'strip must show totals, got: ' + pts.join(' | '));
+  assert.ok(!sb.innerHTML.includes('>5 pts<'), 'per-round 5 must not appear');
+  assert.ok(!sb.innerHTML.includes('>2 pts<'), 'per-round 2 must not appear');
 });
 
 // ─── Lobby ───

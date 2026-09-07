@@ -95,7 +95,7 @@ test('game over -> Main Lagi -> waiting room (auto-ready, same room)', async ({ 
     hands: [[card('3', 'clubs')], [], [], []],
     scores: [-15, 10, 5, 0],
     finishedOrder: [1, 2, 3, 0],
-    round: 2,
+    round: 3,
     totalScores: [-5, 17, 8, 0],
   }));
 
@@ -135,7 +135,7 @@ test('game over -> Keluar leaves the room (old behaviour kept)', async ({ page }
     hands: [[], [], [], [card('3', 'clubs')]],
     scores: [10, 5, 0, -15],
     finishedOrder: [0, 1, 2, 3],
-    round: 1,
+    round: 2,
     totalScores: [10, 5, 0, -15],
   }));
 
@@ -173,7 +173,8 @@ test('real server: full round -> game over -> start again -> round 2 without thr
     return { round: s.round, total: s.totalScores, scores: s.scores, phase: s.phase };
   });
   expect(round1.phase).toBe('gameOver');
-  expect(round1.round).toBe(1);
+  // New semantics: the counter bumped the moment round 1 FINISHED.
+  expect(round1.round).toBe(2);
   // total == scores after round 1 (the session started at zero).
   expect(round1.total).toEqual(round1.scores);
   await expect(page.locator('#gameover-round')).toContainText('Round 1 complete');
@@ -191,7 +192,9 @@ test('real server: full round -> game over -> start again -> round 2 without thr
     const s = window.__app_getState();
     return { round: s.round, three: s.threePhase, noThree: !s.threeDiscard };
   });
-  // The continuation contract: round incremented, and NO three-discard phase.
+  // The continuation contract: `round` holds the number of the round currently
+  // in play (the bump to the NEXT number happens only when THIS round ends),
+  // and there is NO three-discard phase.
   expect(round2.round).toBe(2);
   expect(round2.three).toBe(false);
   expect(round2.noThree).toBe(true);

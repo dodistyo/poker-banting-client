@@ -645,11 +645,14 @@ function renderPartyScreen() {
   const isCreator = myIdx !== -1 && players[myIdx].isCreator;
   const myReady = state.ready && state.ready[myIdx];
 
-  // Host-only settings (play limit + winning point). The server only accepts
-  // these in lobby / game-over, which is exactly when this screen shows.
+  // Host-only settings (play limit + winning point) — and ONLY in the
+  // initial waiting room (round 1, before the first game starts). The server
+  // locks them permanently once the game has started, so the between-rounds
+  // waiting room (round >= 2) shows no settings even for the host.
   const settingsSection = document.getElementById('party-settings-section');
   if (settingsSection) {
-    settingsSection.style.display = isCreator ? 'block' : 'none';
+    const initialRoom = (state.round || 1) === 1;
+    settingsSection.style.display = (isCreator && initialRoom) ? 'block' : 'none';
     const plInput = document.getElementById('party-setting-play-limit');
     const wpInput = document.getElementById('party-setting-winning-point');
     // Don't clobber a field the user is typing in; the roomSettings echo
@@ -667,10 +670,14 @@ function renderPartyScreen() {
     leaveBtnEl.style.background = '#555';
   }
 
-  // Multi-round sessions: the header shows the running round number so the
-  // waiting room reads "Round 2 — Waiting" instead of a blank re-lobby.
+  // Multi-round sessions: the title stays "Waiting Room" (short, never
+  // wraps into the back arrow) and the running round goes in a dedicated
+  // sub-line — "Round 2 Next" once a round has finished. A fresh room
+  // (round 1, nothing played yet) shows no sub-line.
   const header = document.querySelector('#lobby-screen-party .lobby-header h3');
-  if (header) header.textContent = (state.round > 1 ? 'Waiting Room — Round ' + state.round + ' Next' : 'Waiting Room');
+  if (header) header.textContent = 'Waiting Room';
+  const roundSub = document.getElementById('party-round-sub');
+  if (roundSub) roundSub.textContent = (state.round > 1 ? 'Round ' + state.round + ' Next' : '');
 
   const readyBtn = document.getElementById('party-ready-btn');
   if (readyBtn) {
@@ -794,7 +801,9 @@ function showGameOver() {
   }
 
   // Session context: which round just ended and the running total.
-  const round = state.round || 1;
+  // The server bumps `round` the moment a round FINISHES, so the round that
+  // just played is `state.round - 1` (round 1 ends -> counter is 2).
+  const round = Math.max(1, (state.round || 1) - 1);
   const sub = document.getElementById('gameover-round');
   if (sub) {
     sub.textContent = matchOver

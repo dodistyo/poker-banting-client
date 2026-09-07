@@ -31,7 +31,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #lobby-overlay .panel { background: #16213e; border-radius: 16px; padding: 32px 24px; text-align: center; min-width: 420px; max-width: 480px; width: 95vw; position: relative; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04); }
 #lobby-overlay h2 { margin-bottom: 24px; color: #e94560; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
 #lobby-overlay h3 { margin: 0; color: #e94560; font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
-.lobby-header { display: flex; align-items: center; justify-content: center; margin-bottom: 32px; position: relative; }
+.lobby-header { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 32px; position: relative; }
+.lobby-header .lobby-header-sub { margin: 4px 0 0; font-size: 13px; color: #8899aa; font-weight: 600; letter-spacing: 0.4px; }
 .lobby-header .lobby-back-icon { position: absolute; left: 0; top: 50%; transform: translateY(-50%); cursor: pointer; color: #8899aa; transition: color 0.2s ease; }
 
 .lobby-header .lobby-back-icon:hover { color: #e94560; }
@@ -1081,6 +1082,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <div class="lobby-header">
         <span class="lobby-back-icon" onclick="window.__app_leaveRoom()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></span>
         <h3>Waiting Room</h3>
+        <p class="lobby-header-sub" id="party-round-sub"></p>
       </div>
       <div class="lobby-section">
         <label>Room Code</label>
