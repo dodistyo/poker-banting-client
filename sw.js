@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v14"; // bump on every release (v14: round counter at round end, initial-room-only settings, cumulative bottom strip)
+const CACHE_VERSION = "pb-v15"; // bump on every release (v15: cross-origin prod API origin (config.js) — firebase hosting + cloud run)
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 
@@ -28,6 +28,7 @@ const PRECACHE_URLS = [
   "/src/network.js",
   "/src/render.js",
   "/src/session.js",
+  "/src/config.js",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

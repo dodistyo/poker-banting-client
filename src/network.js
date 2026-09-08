@@ -10,6 +10,7 @@ let connectUrl = null;
 const MAX_RECONNECT_DELAY = 8000;
 const PING_INTERVAL = 25000;
 const PONG_TIMEOUT = 10000;
+import { wsUrl, restUrl } from './config.js';
 
 export function connect(url, onMessage, onOpen, onClose) {
   connectUrl = url;
@@ -115,7 +116,9 @@ function ensureConnected(thenSend) {
     return;
   }
   cancelPendingOpenSend();
-  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
+  // Resolved from config.js: same-origin in dev, cross-origin (Cloud Run)
+  // in production. The path mirrors app.js's initial connect.
+  const url = wsUrl();
   if (reconnectTimer) clearTimeout(reconnectTimer);
   const oldWs = ws;
   ws = null;
@@ -149,7 +152,7 @@ function fetchAsMessage(url, msgType, fallback) {
 }
 
 export function listRooms() {
-  fetchAsMessage('/api/rooms', 'roomList', { rooms: [] });
+  fetchAsMessage(restUrl('/api/rooms'), 'roomList', { rooms: [] });
 }
 
 export function sendPlay(cardIdentifiers) {

@@ -1,0 +1,43 @@
+{
+  "hosting": {
+    "public": ".",
+    "site": "poker-banting",
+    "ignore": [
+      "firebase.json",
+      "**/node_modules/**",
+      "**/.git/**",
+      "**/e2e/**",
+      "**/test/**",
+      "**/test-results/**",
+      "**/.opencode/**",
+      "**/.codenomad/**",
+      "**/*.test.js",
+      "dev-server.js",
+      "gen-icons.py",
+      "package.json",
+      "package-lock.json",
+      "Makefile",
+      "playwright.config.js",
+      "AGENTS.md",
+      "GAME-RULES.md"
+    ],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ],
+    "headers": [
+      {
+        "source": "sw.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+          { "key": "Content-Type", "value": "application/javascript" }
+        ]
+      },
+      {
+        "source": "manifest.webmanifest",
+        "headers": [
+          { "key": "Content-Type", "value": "application/manifest+json" }
+        ]
+      }
+    ]
+  }
+}

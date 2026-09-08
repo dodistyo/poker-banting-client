@@ -2,6 +2,7 @@ import { validatePlay, comboName, sortCards, rankIndex, suitOrder } from './game
 import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustHandSizing } from './render.js';
 import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendRoomSettings, sendLeaveRoom, sendRejoin, sendCheckRoom, isConnected, resetConnection } from './network.js';
 import { SESSION_KEY as SESSION_STORAGE_KEY, saveSession, loadSession, clearSession } from './session.js';
+import { wsUrl } from './config.js';
 
 let state = null;
 let playerId = null;
@@ -20,10 +21,9 @@ let isPublic = false;
 // adaptState. Last explicit reorder wins: Sort sets it to sorted order, a drag
 // sets it to the new manual order. Reset to null on redeal/new game.
 let handOrder = null;
-let serverUrl =
-  (location.protocol === "https:" ? "wss://" : "ws://") +
-  location.host +
-  "/api/ws";
+// Resolved from config.js: same-origin in dev (dev-server proxies /api),
+// cross-origin to the Cloud Run API in production (Firebase Hosting).
+let serverUrl = wsUrl();
 const ANIMALS = ['Fox', 'Wolf', 'Bear', 'Eagle', 'Shark', 'Tiger', 'Lion', 'Hawk', 'Panda', 'Otter', 'Raven', 'Falcon', 'Cobra', 'Panther', 'Hare', 'Badger', 'Jaguar', 'Osprey', 'Coyote', 'Stag', 'Mantis', 'Viper'];
 
 function randomAnimalName() {
