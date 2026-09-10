@@ -16,7 +16,7 @@
  * or touches the game traffic — it only handles the shell + /api REST.
  */
 
-const CACHE_VERSION = "pb-v15"; // bump on every release (v15: cross-origin prod API origin (config.js) — firebase hosting + cloud run)
+const CACHE_VERSION = "pb-v16"; // v16: sound cues (synth Web Audio) + screen wake lock while in room
 const STATIC_CACHE = `pb-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `pb-runtime-${CACHE_VERSION}`;
 

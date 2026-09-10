@@ -388,6 +388,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 #menu-copy-btn:disabled { opacity: 0.4; cursor: default; }
 
 #menu-drawer-leave { padding-top: 16px; }
+#menu-drawer-sound { padding: 12px 0; border-bottom: 1px solid #0f3460; display: flex; align-items: center; justify-content: space-between; }
+#menu-sound-btn { display: flex; align-items: center; gap: 8px; background: none; border: 1px solid #1a4a7a; color: #c9d1d9; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; min-height: 32px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+#menu-sound-btn:hover { background: #1a4a7a; color: #fff; }
+#menu-sound-btn.muted { opacity: 0.55; }
 #menu-leave-btn {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   width: 100%; padding: 12px 10px; min-height: 58px;
@@ -1220,6 +1224,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
       <span id="menu-drawer-code">&mdash;</span>
       <button id="menu-copy-btn" onclick="__app_copyRoomCode()" disabled>Copy</button>
     </div>
+  </div>
+  <div id="menu-drawer-sound">
+    <span class="menu-label" style="margin:0">Sound</span>
+    <button id="menu-sound-btn" onclick="__app_toggleSound()"><span id="menu-sound-icon">🔊</span><span id="menu-sound-label">On</span></button>
   </div>
   <div id="menu-drawer-leave">
     <button id="menu-leave-btn" onclick="__app_confirmLeave()">

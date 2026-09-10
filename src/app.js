@@ -3,6 +3,8 @@ import { render, renderThreePhaseOverlay, updateScoreboard, renderLobby, adjustH
 import { connect, disconnect, createRoom, joinRoom, listRooms, sendPlay, sendPass, sendReady, sendStartGame, sendRoomSettings, sendLeaveRoom, sendRejoin, sendCheckRoom, isConnected, resetConnection } from './network.js';
 import { SESSION_KEY as SESSION_STORAGE_KEY, saveSession, loadSession, clearSession } from './session.js';
 import { wsUrl } from './config.js';
+import { primeAudio, resumeAudio, isMuted as soundMuted, setMuted as setSoundMuted, playDeal, playCard, playPass, playTurn, playBomb, playWin } from './sound.js';
+import { hold as wakeHold, release as wakeRelease } from './wake.js';
 
 let state = null;
 let playerId = null;
@@ -150,6 +152,7 @@ export function handleRejoinRoom() {
     return;
   }
   disarmLobbyWatchdog();
+  wakeHold(); // back in a room: keep the screen on (user gesture context)
   rejoinAttempts = 1;
   rejoinPending = true;
   sendRejoin(session.code, session.name, session.token);
@@ -226,6 +229,26 @@ function updateConnectionStatus(connected) {
   }
 }
 
+// --- Sound cues on state transitions --------------------------------------
+// All cues live in sound.js (mute-gated, Web Audio synth). We compare the
+// previous and next adapted state so each cue fires exactly once per event:
+//   deal  — phase X -> playing (start of game or next round)
+//   bomb  — a bomb lands on the table (combo.type 'bomb' appears)
+//   turn  — it becomes OUR turn (currentPlayer flips to us)
+//   win   — a match winner is set (gameWinner null -> value)
+// Only `state` messages drive cues: created/joined land in the lobby, and a
+// rejoin should not replay a deal sound for cards dealt long ago.
+function cuesForTransition(prev, next) {
+  if (!prev || !next) return;
+  if (next.phase === 'playing' && prev.phase !== 'playing') playDeal();
+  if (next.trick && next.trick.combo && next.trick.combo.type === 'bomb'
+      && !(prev.trick && prev.trick.combo && prev.trick.combo.type === 'bomb')) playBomb();
+  if (!next.gameOver && !next.threePhase
+      && playerId !== null && next.currentPlayer === playerId
+      && prev.currentPlayer !== next.currentPlayer) playTurn();
+  if (next.gameWinner != null && prev.gameWinner == null) playWin();
+}
+
 function handleMessage(msg) {
   switch (msg.type) {
     case 'created':
@@ -281,11 +304,14 @@ function handleMessage(msg) {
       break;
     }
 
-    case 'state':
+    case 'state': {
+      const prev = state;
       state = adaptState(msg.state);
+      cuesForTransition(prev, state);
       handlePhase();
       render(state);
       break;
+    }
 
     case 'playerJoined':
       if (state) {
@@ -738,11 +764,13 @@ window.__app_copyCode = () => {
 };
 
 window.__app_startGame = () => {
+  primeAudio(); // user gesture: make sure audio is unlocked before the deal sound
   sendStartGame();
 };
 
 window.__app_toggleReady = () => {
   if (!state) return;
+  primeAudio();
   const players = Array.isArray(state.players) ? state.players : Object.values(state.players);
   const myIdx = players.findIndex(p => p && p.id === playerId);
   const myReady = state.ready && state.ready[myIdx];
@@ -752,6 +780,7 @@ window.__app_toggleReady = () => {
 window.__app_leaveRoom = () => {
   // The drawer's leave/close button (two-tap confirm) also routes through here.
   closeMenuDrawer();
+  wakeRelease(); // leaving the room: let the screen sleep again
   sendLeaveRoom();
   resetRejoin();
   disarmLobbyWatchdog();
@@ -774,6 +803,27 @@ window.__app_leaveRoom = () => {
 
 window.__app_handleCreateRoom = handleCreateRoom;
 window.__app_handleJoinRoom = handleJoinRoom;
+
+// ── Sound toggle (menu drawer) ──────────────────────────────────────────────
+// Mute state lives in sound.js (localStorage 'pocer-sound-muted', default ON).
+function syncSoundToggle() {
+  const btn = document.getElementById('menu-sound-btn');
+  const icon = document.getElementById('menu-sound-icon');
+  const label = document.getElementById('menu-sound-label');
+  if (!btn) return;
+  const m = soundMuted();
+  btn.classList.toggle('muted', m);
+  if (icon) icon.textContent = m ? '🔇' : '🔊';
+  if (label) label.textContent = m ? 'Off' : 'On';
+}
+
+window.__app_toggleSound = () => {
+  const next = !soundMuted();
+  setSoundMuted(next);
+  syncSoundToggle();
+  primeAudio(); // gesture: unlock/resume before the confirmation blip
+  if (!next) playCard(); // audible "on" confirmation; when muting the blip is gated
+};
 
 function showGameOver() {
   const overlay = document.getElementById('gameover-overlay');
@@ -867,6 +917,8 @@ export function handleCreateRoom() {
   if (nameError) nameError.textContent = '';
   const publicToggle = document.getElementById('lobby-public-toggle');
   const isPublic = publicToggle ? publicToggle.checked : true;
+  primeAudio(); // first user gesture: unlock the AudioContext (autoplay policy)
+  wakeHold(); // entering the room: keep the screen on (user gesture context)
   armLobbyWatchdog('Create Room');
   createRoom(name, isPublic);
 }
@@ -895,6 +947,8 @@ export function handleJoinRoom() {
   }
   if (!hasError) {
     roomCode = code;
+    primeAudio(); // first user gesture: unlock the AudioContext (autoplay policy)
+    wakeHold(); // entering the room: keep the screen on (user gesture context)
     armLobbyWatchdog('Join ' + code);
     joinRoom(code, name);
   }
@@ -973,6 +1027,7 @@ export function getSelectedCards() {
 
 export function playCards() {
   if (navigator.vibrate) navigator.vibrate(15);
+  playCard();
   if (!state || state.gameOver || state.threePhase) return;
   if (playerId === null || state.currentPlayer !== playerId) return;
 
@@ -1002,6 +1057,7 @@ export function playCards() {
 // single card".)
 export function dragPlay(playerIdx, cardIdx) {
   if (navigator.vibrate) navigator.vibrate(15);
+  playCard();
   if (!state || state.gameOver || state.threePhase) return;
   if (playerId === null || state.currentPlayer !== playerId) return;
   if (playerIdx !== playerId) return;
@@ -1026,6 +1082,7 @@ export function dragPlay(playerIdx, cardIdx) {
 
 export function passTurn() {
   if (navigator.vibrate) navigator.vibrate(15);
+  playPass();
   if (!state || state.gameOver || state.threePhase) return;
   if (playerId === null || state.currentPlayer !== playerId) return;
   if (state.trick.passed.includes(playerId)) return;
@@ -1164,6 +1221,9 @@ function renderMenuDrawer() {
       : 'Your seat becomes a bot and the game continues.';
   // Reset the two-tap confirm whenever the context changes.
   leaveBtn.classList.remove('confirming');
+
+  // Keep the sound toggle in sync with persisted mute state.
+  syncSoundToggle();
 }
 
 export function openMenuDrawer() {
@@ -1333,3 +1393,20 @@ function stopTurnCountdown() {
   const el = document.getElementById('turn-countdown');
   if (el) { el.textContent = ''; el.classList.remove('visible', 'warning'); }
 }
+
+// ── Audio unlock on return-to-foreground ────────────────────────────────────
+// Mobile browsers suspend the AudioContext (and the tab throttles) when the
+// app goes to background. A cue scheduled while suspended is dead air, so on
+// every return-to-foreground we (re)prime the context. The 25s WS ping keeps
+// the connection alive; this keeps the SOUND alive.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    resumeAudio();
+    syncSoundToggle();
+    if (roomCode) wakeHold(); // OS reclaimed the lock while backgrounded
+  }
+});
+
+// Initial sync so a muted state persisted from a previous load is reflected
+// in the drawer UI from the first open.
+syncSoundToggle();
